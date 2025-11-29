@@ -6,13 +6,17 @@ import { auth } from "@/auth";
 export async function POST(req: Request) {
     const session = await auth();
     if (!session) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 
-    const { repoName, owner, apiKey, provider = 'openai' } = await req.json();
+    const { repoName, owner } = await req.json();
+
+    // Usa a API key configurada no servidor
+    const apiKey = process.env.OPENAI_API_KEY;
+    const provider = (process.env.AI_PROVIDER || 'openai') as 'openai' | 'deepseek';
 
     if (!apiKey) {
-        return NextResponse.json({ error: "API Key is required" }, { status: 400 });
+        return NextResponse.json({ error: "API Key não configurada no servidor" }, { status: 500 });
     }
 
     try {
@@ -26,19 +30,19 @@ export async function POST(req: Request) {
         });
 
         const prompt = `
-      Analyze the following repository content and generate a short, attractive, and technical portfolio summary (max 100 words).
-      Focus on what the project does, the tech stack, and its key features. Always in portuguese-br.
-      
+      Analise o conteúdo do repositório a seguir e gere um resumo curto, atraente e técnico para portfólio (máximo 100 palavras).
+      Foque no que o projeto faz, na stack tecnológica e em seus recursos principais. Sempre em português-br.
+
       README:
       ${content.readme.substring(0, 3000)}
-      
+
       Package.json:
       ${content.packageJson}
     `;
 
         const completion = await openai.chat.completions.create({
             messages: [
-                { role: "system", content: "You are a helpful portfolio assistant." },
+                { role: "system", content: "Você é um assistente especializado em criar resumos técnicos para portfólios." },
                 { role: "user", content: prompt }
             ],
             model: provider === 'deepseek' ? 'deepseek-chat' : 'gpt-3.5-turbo',
@@ -47,6 +51,6 @@ export async function POST(req: Request) {
         return NextResponse.json({ summary: completion.choices[0].message.content });
     } catch (error) {
         console.error(error);
-        return NextResponse.json({ error: "Failed to analyze repository" }, { status: 500 });
+        return NextResponse.json({ error: "Falha ao analisar repositório" }, { status: 500 });
     }
 }

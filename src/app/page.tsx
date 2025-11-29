@@ -17,7 +17,7 @@ export default async function Home() {
           AutoPortfolio AI
         </h1>
         <p className="text-muted-foreground text-lg sm:text-xl">
-          Turn your GitHub repositories into a stunning portfolio in seconds using AI.
+          Transforme seus repositórios do GitHub em um portfólio incrível em segundos usando IA.
         </p>
 
         <form
@@ -28,7 +28,7 @@ export default async function Home() {
         >
           <Button size="lg" className="gap-2">
             <Github className="w-5 h-5" />
-            Sign in with GitHub
+            Entrar com GitHub
           </Button>
         </form>
       </div>

@@ -14,8 +14,8 @@ export function PortfolioPreview({ repos, items, username }: PortfolioPreviewPro
     return (
         <div className="min-h-screen bg-background p-8">
             <header className="max-w-6xl mx-auto mb-12 text-center space-y-4">
-                <h1 className="text-4xl font-bold tracking-tight">{username}&apos;s Portfolio</h1>
-                <p className="text-muted-foreground">Powered by AutoPortfolio AI</p>
+                <h1 className="text-4xl font-bold tracking-tight">Portfólio de {username}</h1>
+                <p className="text-muted-foreground">Criado com AutoPortfolio AI</p>
             </header>
 
             <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -31,13 +31,13 @@ export function PortfolioPreview({ repos, items, username }: PortfolioPreviewPro
                             </CardHeader>
                             <CardContent className="flex-1">
                                 <p className="text-sm text-muted-foreground mb-4 whitespace-pre-wrap">
-                                    {item?.summary || repo.description || "No summary available."}
+                                    {item?.summary || repo.description || "Nenhum resumo disponível."}
                                 </p>
                             </CardContent>
                             <CardFooter className="flex gap-2 mt-auto">
                                 <Button variant="outline" size="sm" asChild className="w-full">
                                     <a href={repo.html_url} target="_blank" rel="noreferrer">
-                                        <Github className="w-4 h-4 mr-2" /> Code
+                                        <Github className="w-4 h-4 mr-2" /> Código
                                     </a>
                                 </Button>
                                 {item?.demoUrl && (

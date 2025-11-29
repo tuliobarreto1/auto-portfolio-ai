@@ -10,6 +10,7 @@ export interface Repository {
     language: string | null;
     stargazers_count: number;
     updated_at: string;
+    private: boolean;
 }
 
 export interface PortfolioItem {
@@ -18,24 +19,20 @@ export interface PortfolioItem {
     demoUrl?: string;
 }
 
+export type VisibilityFilter = 'all' | 'public' | 'private';
+
 interface AppState {
-    openAiKey: string | null;
-    apiProvider: 'openai' | 'deepseek';
-    setOpenAiKey: (key: string | null) => void;
-    setApiProvider: (provider: 'openai' | 'deepseek') => void;
     selectedRepos: Repository[];
     toggleRepoSelection: (repo: Repository) => void;
     portfolioItems: Record<number, PortfolioItem>;
     updatePortfolioItem: (repoId: number, data: Partial<PortfolioItem>) => void;
+    visibilityFilter: VisibilityFilter;
+    setVisibilityFilter: (filter: VisibilityFilter) => void;
 }
 
 export const useStore = create<AppState>()(
     persist(
         (set) => ({
-            openAiKey: null,
-            apiProvider: 'openai',
-            setOpenAiKey: (key) => set({ openAiKey: key }),
-            setApiProvider: (provider) => set({ apiProvider: provider }),
             selectedRepos: [],
             toggleRepoSelection: (repo) =>
                 set((state) => {
@@ -59,14 +56,15 @@ export const useStore = create<AppState>()(
                         },
                     },
                 })),
+            visibilityFilter: 'all',
+            setVisibilityFilter: (filter) => set({ visibilityFilter: filter }),
         }),
         {
             name: 'auto-portfolio-storage',
             partialize: (state) => ({
-                openAiKey: state.openAiKey,
-                apiProvider: state.apiProvider,
                 selectedRepos: state.selectedRepos,
-                portfolioItems: state.portfolioItems
+                portfolioItems: state.portfolioItems,
+                visibilityFilter: state.visibilityFilter
             }),
         }
     )
