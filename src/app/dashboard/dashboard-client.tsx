@@ -46,7 +46,11 @@ export default function DashboardClient({ initialRepos }: DashboardClientProps) 
             const data = await res.json();
             if (data.error) throw new Error(data.error);
 
-            updatePortfolioItem(repo.id, { summary: data.summary });
+            updatePortfolioItem(repo.id, {
+                objective: data.objective,
+                features: data.features,
+                technicalSummary: data.technicalSummary
+            });
         } catch (error) {
             console.error(error);
             alert("Falha ao analisar repositório.");
@@ -108,8 +112,12 @@ export default function DashboardClient({ initialRepos }: DashboardClientProps) 
                             onToggle={() => toggleRepoSelection(repo)}
                             onAnalyze={() => handleAnalyze(repo)}
                             isAnalyzing={analyzing === repo.id}
-                            summary={item?.summary}
-                            onSummaryChange={(val) => updatePortfolioItem(repo.id, { summary: val })}
+                            objective={item?.objective}
+                            onObjectiveChange={(val) => updatePortfolioItem(repo.id, { objective: val })}
+                            features={item?.features}
+                            onFeaturesChange={(val) => updatePortfolioItem(repo.id, { features: val })}
+                            technicalSummary={item?.technicalSummary}
+                            onTechnicalSummaryChange={(val) => updatePortfolioItem(repo.id, { technicalSummary: val })}
                             demoUrl={item?.demoUrl}
                             onDemoUrlChange={(val) => updatePortfolioItem(repo.id, { demoUrl: val })}
                         />

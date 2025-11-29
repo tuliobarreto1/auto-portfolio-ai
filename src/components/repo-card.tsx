@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Star, Lock, Globe } from "lucide-react";
-import { Textarea } from "@/components/ui/textarea";
+import { AutoResizeTextarea } from "@/components/ui/auto-resize-textarea";
 import { Input } from "@/components/ui/input";
 import { Repository } from "@/lib/store";
 import { ScreenRecorder } from "@/components/screen-recorder";
@@ -11,15 +11,23 @@ interface RepoCardProps {
     isSelected: boolean;
     onToggle: () => void;
     onAnalyze: () => void;
-    summary?: string;
-    onSummaryChange: (val: string) => void;
+    objective?: string;
+    onObjectiveChange: (val: string) => void;
+    features?: string;
+    onFeaturesChange: (val: string) => void;
+    technicalSummary?: string;
+    onTechnicalSummaryChange: (val: string) => void;
     demoUrl?: string;
     onDemoUrlChange: (val: string) => void;
     isAnalyzing: boolean;
 }
 
 export function RepoCard({
-    repo, isSelected, onToggle, onAnalyze, summary, onSummaryChange, isAnalyzing, demoUrl, onDemoUrlChange
+    repo, isSelected, onToggle, onAnalyze,
+    objective, onObjectiveChange,
+    features, onFeaturesChange,
+    technicalSummary, onTechnicalSummaryChange,
+    isAnalyzing, demoUrl, onDemoUrlChange
 }: RepoCardProps) {
     return (
         <Card className={`transition-all ${isSelected ? 'border-primary ring-1 ring-primary' : ''}`}>
@@ -58,17 +66,37 @@ export function RepoCard({
                     <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
                         <div className="flex gap-2">
                             <Button size="sm" onClick={onAnalyze} disabled={isAnalyzing}>
-                                {isAnalyzing ? "Analisando..." : "Gerar Resumo com IA"}
+                                {isAnalyzing ? "Analisando..." : "Gerar Análise com IA"}
                             </Button>
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-sm font-medium">Resumo</label>
-                            <Textarea
-                                value={summary || ""}
-                                onChange={(e) => onSummaryChange(e.target.value)}
-                                placeholder="O resumo gerado pela IA aparecerá aqui..."
-                                className="min-h-[100px]"
+                            <label className="text-sm font-medium">Objetivo da Aplicação</label>
+                            <AutoResizeTextarea
+                                value={objective || ""}
+                                onChange={(e) => onObjectiveChange(e.target.value)}
+                                placeholder="Qual é o propósito da aplicação? Que problema ela resolve?"
+                                className="min-h-[60px]"
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Funcionalidades</label>
+                            <AutoResizeTextarea
+                                value={features || ""}
+                                onChange={(e) => onFeaturesChange(e.target.value)}
+                                placeholder="Principais funcionalidades da aplicação..."
+                                className="min-h-[60px]"
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Resumo Técnico</label>
+                            <AutoResizeTextarea
+                                value={technicalSummary || ""}
+                                onChange={(e) => onTechnicalSummaryChange(e.target.value)}
+                                placeholder="Stack tecnológica, arquitetura e aspectos técnicos..."
+                                className="min-h-[60px]"
                             />
                         </div>
 

@@ -3,10 +3,12 @@
 import { useStore } from "@/lib/store";
 import { PortfolioPreview } from "@/components/portfolio-preview";
 import { useEffect, useState } from "react";
+import { use } from "react";
 
-export default function PortfolioPage({ params }: { params: { username: string } }) {
+export default function PortfolioPage({ params }: { params: Promise<{ username: string }> }) {
     const { selectedRepos, portfolioItems } = useStore();
     const [mounted, setMounted] = useState(false);
+    const resolvedParams = use(params);
 
     useEffect(() => {
         setMounted(true);
@@ -26,7 +28,7 @@ export default function PortfolioPage({ params }: { params: { username: string }
         <PortfolioPreview
             repos={selectedRepos}
             items={portfolioItems}
-            username={decodeURIComponent(params.username)}
+            username={decodeURIComponent(resolvedParams.username)}
         />
     );
 }

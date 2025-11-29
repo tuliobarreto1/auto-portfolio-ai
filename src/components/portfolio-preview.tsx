@@ -29,10 +29,39 @@ export function PortfolioPreview({ repos, items, username }: PortfolioPreviewPro
                                     {repo.language && <Badge variant="secondary" className="shrink-0">{repo.language}</Badge>}
                                 </CardTitle>
                             </CardHeader>
-                            <CardContent className="flex-1">
-                                <p className="text-sm text-muted-foreground mb-4 whitespace-pre-wrap">
-                                    {item?.summary || repo.description || "Nenhum resumo disponível."}
-                                </p>
+                            <CardContent className="flex-1 space-y-4">
+                                {item?.objective && (
+                                    <div>
+                                        <h3 className="text-sm font-semibold mb-1">Objetivo</h3>
+                                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                                            {item.objective}
+                                        </p>
+                                    </div>
+                                )}
+
+                                {item?.features && (
+                                    <div>
+                                        <h3 className="text-sm font-semibold mb-1">Funcionalidades</h3>
+                                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                                            {item.features}
+                                        </p>
+                                    </div>
+                                )}
+
+                                {item?.technicalSummary && (
+                                    <div>
+                                        <h3 className="text-sm font-semibold mb-1">Stack Técnica</h3>
+                                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                                            {item.technicalSummary}
+                                        </p>
+                                    </div>
+                                )}
+
+                                {!item?.objective && !item?.features && !item?.technicalSummary && (
+                                    <p className="text-sm text-muted-foreground">
+                                        {repo.description || "Nenhuma descrição disponível."}
+                                    </p>
+                                )}
                             </CardContent>
                             <CardFooter className="flex gap-2 mt-auto">
                                 <Button variant="outline" size="sm" asChild className="w-full">

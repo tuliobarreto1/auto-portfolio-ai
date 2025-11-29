@@ -15,7 +15,9 @@ export interface Repository {
 
 export interface PortfolioItem {
     repoId: number;
-    summary: string;
+    objective?: string;        // Objetivo da aplicação
+    features?: string;         // Funcionalidades
+    technicalSummary?: string; // Resumo técnico
     demoUrl?: string;
 }
 

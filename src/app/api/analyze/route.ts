@@ -30,8 +30,22 @@ export async function POST(req: Request) {
         });
 
         const prompt = `
-      Analise o conteúdo do repositório a seguir e gere um resumo curto, atraente e técnico para portfólio (máximo 100 palavras).
-      Foque no que o projeto faz, na stack tecnológica e em seus recursos principais. Sempre em português-br.
+      Analise o conteúdo do repositório a seguir e gere três seções distintas em português-br para um portfólio profissional.
+
+      IMPORTANTE: Retorne APENAS um JSON válido no seguinte formato (sem markdown, sem blocos de código, apenas o JSON puro):
+      {
+        "objective": "texto aqui",
+        "features": "texto aqui",
+        "technicalSummary": "texto aqui"
+      }
+
+      Regras para cada seção:
+
+      1. "objective" (2-3 frases): Descreva de forma clara e objetiva qual é o propósito da aplicação, o problema que ela resolve e para quem é destinada.
+
+      2. "features" (3-5 bullet points): Liste as principais funcionalidades da aplicação de forma concisa. Use formato de lista com bullets (•).
+
+      3. "technicalSummary" (2-3 frases): Descreva a stack tecnológica utilizada, arquitetura, padrões e aspectos técnicos relevantes.
 
       README:
       ${content.readme.substring(0, 3000)}
@@ -42,13 +56,28 @@ export async function POST(req: Request) {
 
         const completion = await openai.chat.completions.create({
             messages: [
-                { role: "system", content: "Você é um assistente especializado em criar resumos técnicos para portfólios." },
+                { role: "system", content: "Você é um assistente especializado em criar descrições técnicas para portfólios. Retorne APENAS JSON válido, sem markdown ou formatação adicional." },
                 { role: "user", content: prompt }
             ],
             model: provider === 'deepseek' ? 'deepseek-chat' : 'gpt-3.5-turbo',
+            response_format: { type: "json_object" },
         });
 
-        return NextResponse.json({ summary: completion.choices[0].message.content });
+        const aiResponse = completion.choices[0].message.content;
+        let parsedResponse;
+
+        try {
+            parsedResponse = JSON.parse(aiResponse || "{}");
+        } catch (e) {
+            console.error("Failed to parse AI response:", aiResponse);
+            throw new Error("Resposta da IA em formato inválido");
+        }
+
+        return NextResponse.json({
+            objective: parsedResponse.objective || "",
+            features: parsedResponse.features || "",
+            technicalSummary: parsedResponse.technicalSummary || ""
+        });
     } catch (error) {
         console.error(error);
         return NextResponse.json({ error: "Falha ao analisar repositório" }, { status: 500 });
