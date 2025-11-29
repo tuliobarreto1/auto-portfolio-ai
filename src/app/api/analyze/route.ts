@@ -29,6 +29,25 @@ export async function POST(req: Request) {
             baseURL: provider === 'deepseek' ? 'https://api.deepseek.com' : undefined,
         });
 
+        // Monta informações disponíveis
+        const availableInfo = [];
+
+        if (content.description) {
+            availableInfo.push(`Descrição do repositório: ${content.description}`);
+        }
+
+        if (content.readme) {
+            availableInfo.push(`README:\n${content.readme.substring(0, 3000)}`);
+        }
+
+        if (content.packageJson) {
+            availableInfo.push(`Package.json:\n${content.packageJson}`);
+        }
+
+        if (content.sourceFiles) {
+            availableInfo.push(`Arquivos de código principais:\n${content.sourceFiles}`);
+        }
+
         const prompt = `
       Analise o conteúdo do repositório a seguir e gere três seções distintas em português-br para um portfólio profissional.
 
@@ -41,17 +60,14 @@ export async function POST(req: Request) {
 
       Regras para cada seção:
 
-      1. "objective" (2-3 frases): Descreva de forma clara e objetiva qual é o propósito da aplicação, o problema que ela resolve e para quem é destinada.
+      1. "objective" (2-3 frases): Descreva de forma clara e objetiva qual é o propósito da aplicação, o problema que ela resolve e para quem é destinada. Analise o código fornecido para entender o objetivo.
 
-      2. "features" (3-5 bullet points): Liste as principais funcionalidades da aplicação de forma concisa. Use formato de lista com bullets (•).
+      2. "features" (3-5 bullet points): Liste as principais funcionalidades da aplicação de forma concisa. Use formato de lista com bullets (•). Baseie-se no código e documentação fornecidos.
 
-      3. "technicalSummary" (2-3 frases): Descreva a stack tecnológica utilizada, arquitetura, padrões e aspectos técnicos relevantes.
+      3. "technicalSummary" (2-3 frases): Descreva a stack tecnológica utilizada, arquitetura, padrões e aspectos técnicos relevantes. Analise os imports, dependências e estrutura do código.
 
-      README:
-      ${content.readme.substring(0, 3000)}
-
-      Package.json:
-      ${content.packageJson}
+      Informações do repositório:
+      ${availableInfo.join('\n\n')}
     `;
 
         const completion = await openai.chat.completions.create({

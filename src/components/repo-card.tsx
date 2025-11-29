@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Star, Lock, Globe } from "lucide-react";
+import { Star, Lock, Globe, ExternalLink } from "lucide-react";
 import { AutoResizeTextarea } from "@/components/ui/auto-resize-textarea";
 import { Input } from "@/components/ui/input";
 import { Repository } from "@/lib/store";
@@ -98,6 +98,27 @@ export function RepoCard({
                                 placeholder="Stack tecnológica, arquitetura e aspectos técnicos..."
                                 className="min-h-[60px]"
                             />
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Link do GitHub</label>
+                            <div className="flex gap-2">
+                                <Input
+                                    value={repo.html_url}
+                                    readOnly
+                                    className="bg-muted cursor-default"
+                                />
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    asChild
+                                >
+                                    <a href={repo.html_url} target="_blank" rel="noreferrer" className="gap-1">
+                                        <ExternalLink className="w-4 h-4" />
+                                        Abrir
+                                    </a>
+                                </Button>
+                            </div>
                         </div>
 
                         <div className="space-y-2">
