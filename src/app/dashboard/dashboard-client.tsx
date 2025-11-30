@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ExternalLink, Search } from "lucide-react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
+import { ResumeUpload } from "@/components/resume-upload";
 
 interface DashboardClientProps {
     initialRepos: Repository[];
@@ -105,6 +106,8 @@ export default function DashboardClient({ initialRepos }: DashboardClientProps) 
 
     return (
         <div className="space-y-8">
+            <ResumeUpload />
+            
             <div className="flex flex-col gap-4">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">

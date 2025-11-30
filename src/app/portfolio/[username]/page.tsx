@@ -23,6 +23,7 @@ export default async function PortfolioPage({
                         where: { selected: true },
                     },
                     portfolioItems: true,
+                    resume: true,
                 },
             });
         } catch (dbError: any) {
@@ -90,6 +91,7 @@ export default async function PortfolioPage({
                 repos={repos}
                 items={items}
                 username={user.displayName || username}
+                hasResume={!!user.resume}
             />
         );
     } catch (error: any) {

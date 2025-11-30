@@ -21,6 +21,7 @@ model User {
   updatedAt      DateTime        @updatedAt
   repositories   Repository[]
   portfolioItems PortfolioItem[]
+  resume         Resume?
 }
 
 model Repository {
@@ -56,4 +57,17 @@ model PortfolioItem {
   updatedAt        DateTime   @updatedAt
 
   @@unique([userId, repoId])
+}
+
+model Resume {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  originalFileName String   // Nome original do arquivo
+  fileType         String   // pdf ou docx
+  fileUrl          String   // URL do arquivo armazenado
+  enhancedFileUrl  String?  // URL do arquivo processado pela IA (se aplicável)
+  isEnhanced       Boolean  @default(false) // Se foi processado pela IA
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 }

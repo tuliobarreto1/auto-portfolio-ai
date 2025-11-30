@@ -1,21 +1,31 @@
 import { Repository, PortfolioItem } from "@/lib/store";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, Github } from "lucide-react";
+import { ExternalLink, Github, FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
 
 interface PortfolioPreviewProps {
     repos: Repository[];
     items: Record<number, PortfolioItem>;
     username: string;
+    hasResume?: boolean;
 }
 
-export function PortfolioPreview({ repos, items, username }: PortfolioPreviewProps) {
+export function PortfolioPreview({ repos, items, username, hasResume = false }: PortfolioPreviewProps) {
     return (
         <div className="min-h-screen bg-background p-8">
             <header className="max-w-6xl mx-auto mb-12 text-center space-y-4">
                 <h1 className="text-4xl font-bold tracking-tight">Portfólio de {username}</h1>
                 <p className="text-muted-foreground">Criado com AutoPortfolio AI</p>
+                {hasResume && (
+                    <Link href={`resume`}>
+                        <Button variant="outline" className="gap-2">
+                            <FileText className="w-4 h-4" />
+                            Ver Currículo
+                        </Button>
+                    </Link>
+                )}
             </header>
 
             <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
