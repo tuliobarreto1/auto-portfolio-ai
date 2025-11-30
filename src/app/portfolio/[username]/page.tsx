@@ -3,9 +3,11 @@ import { prisma } from "@/lib/prisma";
 import { use } from "react";
 
 export default async function PortfolioPage({ params }: { params: Promise<{ username: string }> }) {
+    // use() PRECISA estar fora do try/catch
+    const resolvedParams = use(params);
+    const username = decodeURIComponent(resolvedParams.username);
+
     try {
-        const resolvedParams = use(params);
-        const username = decodeURIComponent(resolvedParams.username);
 
         console.log("Portfolio: Buscando portfólio para username:", username);
 
