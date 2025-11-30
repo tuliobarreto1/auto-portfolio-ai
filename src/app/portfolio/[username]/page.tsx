@@ -3,27 +3,51 @@ import { prisma } from "@/lib/prisma";
 import { use } from "react";
 
 export default async function PortfolioPage({ params }: { params: Promise<{ username: string }> }) {
-    const resolvedParams = use(params);
-    const username = decodeURIComponent(resolvedParams.username);
+    try {
+        const resolvedParams = use(params);
+        const username = decodeURIComponent(resolvedParams.username);
 
-    // Busca o usuário pelo username
-    const user = await prisma.user.findFirst({
-        where: { username },
-        include: {
-            repositories: {
-                where: { selected: true },
+        console.log("Portfolio: Buscando portfólio para username:", username);
+
+        // Busca o usuário pelo username
+        const user = await prisma.user.findFirst({
+            where: { username },
+            include: {
+                repositories: {
+                    where: { selected: true },
+                },
+                portfolioItems: true,
             },
-            portfolioItems: true,
-        },
-    });
+        });
 
-    if (!user || user.repositories.length === 0) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-background">
-                <p className="text-muted-foreground">Nenhum projeto disponível para este usuário.</p>
-            </div>
-        );
-    }
+        console.log("Portfolio: Usuário encontrado:", !!user);
+        if (user) {
+            console.log("Portfolio: Repositórios selecionados:", user.repositories.length);
+            console.log("Portfolio: Portfolio items:", user.portfolioItems.length);
+        }
+
+        if (!user) {
+            return (
+                <div className="min-h-screen flex items-center justify-center bg-background">
+                    <div className="text-center space-y-4">
+                        <p className="text-muted-foreground">Usuário não encontrado.</p>
+                        <p className="text-sm text-muted-foreground">Username procurado: {username}</p>
+                        <p className="text-sm text-muted-foreground">Certifique-se de que você já fez login e selecionou projetos no dashboard.</p>
+                    </div>
+                </div>
+            );
+        }
+
+        if (user.repositories.length === 0) {
+            return (
+                <div className="min-h-screen flex items-center justify-center bg-background">
+                    <div className="text-center space-y-4">
+                        <p className="text-muted-foreground">Nenhum projeto selecionado ainda.</p>
+                        <p className="text-sm text-muted-foreground">Vá para o dashboard e selecione alguns projetos para exibir no portfólio.</p>
+                    </div>
+                </div>
+            );
+        }
 
     // Formata os repositórios para o formato esperado
     const repos = user.repositories.map((repo) => ({
@@ -51,11 +75,23 @@ export default async function PortfolioPage({ params }: { params: Promise<{ user
         };
     }
 
-    return (
-        <PortfolioPreview
-            repos={repos}
-            items={items}
-            username={username}
-        />
-    );
+        return (
+            <PortfolioPreview
+                repos={repos}
+                items={items}
+                username={username}
+            />
+        );
+    } catch (error: any) {
+        console.error("Portfolio error:", error);
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-background">
+                <div className="text-center space-y-4">
+                    <h1 className="text-2xl font-bold text-red-600">Erro ao carregar portfólio</h1>
+                    <p className="text-muted-foreground">{error.message || "Ocorreu um erro inesperado."}</p>
+                    <p className="text-sm text-muted-foreground">Verifique os logs do servidor para mais detalhes.</p>
+                </div>
+            </div>
+        );
+    }
 }
