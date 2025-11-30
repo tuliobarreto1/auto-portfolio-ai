@@ -13,7 +13,8 @@ export async function POST(req: Request) {
 
         // @ts-ignore
         const githubId = session.user.id || session.userId;
-        const username = session.user.name || "";
+        // @ts-ignore - Usa o login (username) do GitHub, não o name (nome completo)
+        const username = session.user.login || session.user.name || "";
         const email = session.user.email || "";
 
         // Cria ou atualiza o usuário

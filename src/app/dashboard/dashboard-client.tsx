@@ -112,8 +112,8 @@ export default function DashboardClient({ initialRepos }: DashboardClientProps) 
                     </div>
                 </div>
 
-                {selectedRepos.length > 0 && session?.user?.name && (
-                    <Link href={`/portfolio/${session.user.name}`} target="_blank">
+                {selectedRepos.length > 0 && session?.user && (
+                    <Link href={`/portfolio/${(session.user as any).login || session.user.name}`} target="_blank">
                         <Button variant="secondary" className="gap-2">
                             <ExternalLink className="w-4 h-4" /> Ver Portfólio Público
                         </Button>

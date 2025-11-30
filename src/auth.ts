@@ -25,6 +25,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             }
             if (profile) {
                 token.githubId = profile.id
+                // @ts-ignore - Salva o login (username) do GitHub
+                token.githubLogin = profile.login
             }
             return token
         },
@@ -33,6 +35,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             session.accessToken = token.accessToken
             // @ts-ignore
             session.user.id = token.githubId
+            // @ts-ignore - Adiciona o login (username) na sessão
+            session.user.login = token.githubLogin
             return session
         },
     },
