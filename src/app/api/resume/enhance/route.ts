@@ -5,17 +5,25 @@ import { Octokit } from "octokit";
 import OpenAI from "openai";
 import { v4 as uuidv4 } from "uuid";
 import path from "path";
-import { mkdir, writeFile } from "fs/promises";
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+import { mkdir, writeFile, readFile } from "fs/promises";
+import { PDFDancer, Color } from "pdfdancer-client-typescript";
 
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
     if (!session?.user) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+    }
+
+    // Configuração da IA (OpenAI ou DeepSeek)
+    const apiKey = process.env.OPENAI_API_KEY;
+    const provider = (process.env.AI_PROVIDER || 'openai') as 'openai' | 'deepseek';
+
+    if (!apiKey) {
+      return NextResponse.json(
+        { error: "API Key da IA não configurada no servidor" },
+        { status: 500 }
+      );
     }
 
     // @ts-ignore
@@ -81,7 +89,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Analisar projetos com IA para gerar sugestões
-      const aiAnalysis = await analyzeProjectsForResume(projectsInfo);
+      const aiAnalysis = await analyzeProjectsForResume(projectsInfo, apiKey, provider);
 
       // Integração com PDFDancer
       const enhancedPdfUrl = await enhanceResumeWithPDFDancer(
@@ -106,7 +114,7 @@ export async function POST(request: NextRequest) {
       });
     } else {
       // Para DOCX, apenas retornar sugestões da IA
-      const aiAnalysis = await analyzeProjectsForResume(projectsInfo);
+      const aiAnalysis = await analyzeProjectsForResume(projectsInfo, apiKey, provider);
 
       return NextResponse.json({
         success: true,
@@ -125,12 +133,19 @@ export async function POST(request: NextRequest) {
 }
 
 async function analyzeProjectsForResume(
-  projects: any[]
+  projects: any[],
+  apiKey: string,
+  provider: 'openai' | 'deepseek'
 ): Promise<{
   skills: string[];
   experience: string[];
   highlights: string[];
 }> {
+  const openai = new OpenAI({
+    apiKey: apiKey,
+    baseURL: provider === 'deepseek' ? 'https://api.deepseek.com' : undefined,
+  });
+
   const prompt = `Analise os seguintes projetos do GitHub e sugira melhorias para um currículo profissional.
 Seja OBJETIVO e HONESTO - não exagere nas conquistas.
 
@@ -146,8 +161,10 @@ Retorne em formato JSON:
 
 IMPORTANTE: Seja preciso e factual. Não invente métricas ou conquistas que não existem.`;
 
+  const model = provider === 'deepseek' ? 'deepseek-chat' : 'gpt-4o-mini';
+
   const completion = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
+    model: model,
     messages: [
       {
         role: "system",
@@ -168,48 +185,56 @@ async function enhanceResumeWithPDFDancer(
   analysis: any,
   apiKey: string
 ): Promise<string> {
-  // Esta função será implementada com a integração real do PDFDancer
-  // Por enquanto, retorna a URL original
-  
-  // Documentação: https://docs.pdfdancer.com/
-  // A implementação exata dependerá da estrutura da API
-  
-  const pdfDancerApiUrl = "https://api.pdfdancer.com"; // URL base da API
-  
   try {
-    // Exemplo de como seria a integração (ajustar conforme documentação real)
-    const response = await fetch(`${pdfDancerApiUrl}/v1/pdf/modify`, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        sourceUrl: `${process.env.NEXT_PUBLIC_APP_URL}${originalFileUrl}`,
-        modifications: {
-          addSkills: analysis.skills,
-          addExperience: analysis.experience,
-          addHighlights: analysis.highlights,
-        },
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error("Erro ao processar PDF com PDFDancer");
+    // Ler o arquivo PDF original
+    const pdfPath = path.join(process.cwd(), "public", originalFileUrl);
+    const pdfBuffer = await readFile(pdfPath);
+    
+    // Inicializar PDFDancer com o token da API
+    const pdfDancerToken = process.env.PDFDANCER_API_KEY;
+    
+    // Abrir o PDF com PDFDancer (sintaxe correta: passa pdfData diretamente, não como objeto)
+    const pdf = await PDFDancer.open(pdfBuffer, pdfDancerToken);
+    
+    // Adicionar um parágrafo com as skills principais no topo da primeira página
+    if (analysis.skills && analysis.skills.length > 0) {
+      const skillsText = `Habilidades Destacadas: ${analysis.skills.slice(0, 5).join(', ')}`;
+      
+      await pdf.newParagraph()
+        .text(skillsText)
+        .font("Helvetica-Bold", 10)
+        .color(new Color(0, 102, 204)) // Azul (RGB com alpha padrão)
+        .at(1, 72, 720) // pageNumber, x, y - Topo da página
+        .add();
     }
-
-    const result = await response.json();
     
-    // Baixar e salvar o PDF processado
-    const pdfResponse = await fetch(result.outputUrl);
-    const pdfBuffer = Buffer.from(await pdfResponse.arrayBuffer());
+    // Adicionar experiência relevante baseada nos projetos
+    if (analysis.experience && analysis.experience.length > 0) {
+      const experienceText = `Experiência Relevante (GitHub): ${analysis.experience[0]}`;
+      
+      await pdf.newParagraph()
+        .text(experienceText)
+        .font("Helvetica", 9)
+        .at(1, 72, 695) // pageNumber, x, y
+        .add();
+    }
     
-    const uniqueFileName = `${uuidv4()}.pdf`;
-    const uploadsDir = path.join(process.cwd(), "public", "uploads", "resumes");
-    await mkdir(uploadsDir, { recursive: true });
+    // Adicionar highlights como bullet points
+    if (analysis.highlights && analysis.highlights.length > 0) {
+      let yPosition = 670;
+      for (let i = 0; i < Math.min(3, analysis.highlights.length); i++) {
+        await pdf.newParagraph()
+          .text(`• ${analysis.highlights[i]}`)
+          .font("Helvetica", 9)
+          .at(1, 72, yPosition - (i * 20)) // pageNumber, x, y
+          .add();
+      }
+    }
     
-    const filePath = path.join(uploadsDir, uniqueFileName);
-    await writeFile(filePath, pdfBuffer);
+    // Salvar o PDF modificado
+    const uniqueFileName = `enhanced-${uuidv4()}.pdf`;
+    const outputPath = path.join(process.cwd(), "public", "uploads", "resumes", uniqueFileName);
+    await pdf.save(outputPath);
     
     return `/uploads/resumes/${uniqueFileName}`;
   } catch (error) {

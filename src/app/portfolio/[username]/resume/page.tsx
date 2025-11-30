@@ -52,7 +52,7 @@ export default async function ResumePage({ params }: ResumePageProps) {
                   </span>
                   {user.resume.isEnhanced && (
                     <span className="text-primary font-medium">
-                      ✨ Aprimorado com IA
+                       
                     </span>
                   )}
                 </div>
