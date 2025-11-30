@@ -1,26 +1,34 @@
 import { PortfolioPreview } from "@/components/portfolio-preview";
 import { prisma } from "@/lib/prisma";
-import { use } from "react";
 
-export default async function PortfolioPage({ params }: { params: Promise<{ username: string }> }) {
-    // use() PRECISA estar fora do try/catch
-    const resolvedParams = use(params);
+export default async function PortfolioPage({
+    params
+}: {
+    params: Promise<{ username: string }>
+}) {
+    // Await params diretamente (Next.js 15)
+    const resolvedParams = await params;
     const username = decodeURIComponent(resolvedParams.username);
 
     try {
-
         console.log("Portfolio: Buscando portfólio para username:", username);
 
         // Busca o usuário pelo username
-        const user = await prisma.user.findFirst({
-            where: { username },
-            include: {
-                repositories: {
-                    where: { selected: true },
+        let user;
+        try {
+            user = await prisma.user.findFirst({
+                where: { username },
+                include: {
+                    repositories: {
+                        where: { selected: true },
+                    },
+                    portfolioItems: true,
                 },
-                portfolioItems: true,
-            },
-        });
+            });
+        } catch (dbError: any) {
+            console.error("Portfolio: Database error:", dbError);
+            throw new Error(`Erro de conexão com banco de dados: ${dbError.message}`);
+        }
 
         console.log("Portfolio: Usuário encontrado:", !!user);
         if (user) {
