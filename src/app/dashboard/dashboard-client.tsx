@@ -23,22 +23,27 @@ export default function DashboardClient({ initialRepos }: DashboardClientProps) 
     } = useStore();
 
     const [analyzing, setAnalyzing] = useState<number | null>(null);
+    const [isLoaded, setIsLoaded] = useState(false);
 
     // Carrega dados do servidor ao montar o componente
     useEffect(() => {
-        loadFromServer();
-    }, [loadFromServer]);
+        if (!isLoaded) {
+            loadFromServer().finally(() => setIsLoaded(true));
+        }
+    }, []);
 
     // Sincroniza com o servidor sempre que os dados mudarem
     useEffect(() => {
-        if (session?.user && initialRepos.length > 0) {
+        if (isLoaded && session?.user && initialRepos.length > 0) {
             const timeoutId = setTimeout(() => {
-                syncWithServer(initialRepos);
+                syncWithServer(initialRepos).catch(err => {
+                    console.error('Erro ao sincronizar:', err);
+                });
             }, 1000); // Debounce de 1 segundo
 
             return () => clearTimeout(timeoutId);
         }
-    }, [selectedRepos, portfolioItems, session, initialRepos, syncWithServer]);
+    }, [selectedRepos, portfolioItems, session?.user, isLoaded]);
 
     // Filtra repositórios baseado na visibilidade
     const filteredRepos = useMemo(() => {
