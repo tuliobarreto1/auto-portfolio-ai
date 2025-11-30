@@ -11,6 +11,7 @@ interface RepoCardProps {
     isSelected: boolean;
     onToggle: () => void;
     onAnalyze: () => void;
+    onClear: () => void;
     objective?: string;
     onObjectiveChange: (val: string) => void;
     features?: string;
@@ -23,7 +24,7 @@ interface RepoCardProps {
 }
 
 export function RepoCard({
-    repo, isSelected, onToggle, onAnalyze,
+    repo, isSelected, onToggle, onAnalyze, onClear,
     objective, onObjectiveChange,
     features, onFeaturesChange,
     technicalSummary, onTechnicalSummaryChange,
@@ -68,6 +69,11 @@ export function RepoCard({
                             <Button size="sm" onClick={onAnalyze} disabled={isAnalyzing}>
                                 {isAnalyzing ? "Analisando..." : "Gerar Análise com IA"}
                             </Button>
+                            {(objective || features || technicalSummary) && (
+                                <Button size="sm" variant="outline" onClick={onClear}>
+                                    Limpar Resumos
+                                </Button>
+                            )}
                         </div>
 
                         <div className="space-y-2">

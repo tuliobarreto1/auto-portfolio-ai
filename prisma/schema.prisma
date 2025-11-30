@@ -1,0 +1,58 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String          @id @default(cuid())
+  githubId       String          @unique
+  username       String
+  email          String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  repositories   Repository[]
+  portfolioItems PortfolioItem[]
+}
+
+model Repository {
+  id              Int             @id
+  userId          String
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name            String
+  fullName        String
+  description     String?
+  htmlUrl         String
+  language        String?
+  stargazersCount Int
+  updatedAt       DateTime
+  private         Boolean
+  selected        Boolean         @default(false)
+  portfolioItems  PortfolioItem[]
+
+  @@unique([userId, id])
+}
+
+model PortfolioItem {
+  id               String     @id @default(cuid())
+  userId           String
+  user             User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  repoId           Int
+  repository       Repository @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  objective        String?
+  features         String?
+  technicalSummary String?
+  demoUrl          String?
+  recordingUrl     String?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  @@unique([userId, repoId])
+}

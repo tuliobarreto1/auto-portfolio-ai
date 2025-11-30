@@ -17,11 +17,28 @@ export default function DashboardClient({ initialRepos }: DashboardClientProps) 
     const { data: session } = useSession();
     const {
         selectedRepos, toggleRepoSelection,
-        portfolioItems, updatePortfolioItem,
-        visibilityFilter, setVisibilityFilter
+        portfolioItems, updatePortfolioItem, clearPortfolioItem,
+        visibilityFilter, setVisibilityFilter,
+        syncWithServer, loadFromServer
     } = useStore();
 
     const [analyzing, setAnalyzing] = useState<number | null>(null);
+
+    // Carrega dados do servidor ao montar o componente
+    useEffect(() => {
+        loadFromServer();
+    }, [loadFromServer]);
+
+    // Sincroniza com o servidor sempre que os dados mudarem
+    useEffect(() => {
+        if (session?.user && initialRepos.length > 0) {
+            const timeoutId = setTimeout(() => {
+                syncWithServer(initialRepos);
+            }, 1000); // Debounce de 1 segundo
+
+            return () => clearTimeout(timeoutId);
+        }
+    }, [selectedRepos, portfolioItems, session, initialRepos, syncWithServer]);
 
     // Filtra repositórios baseado na visibilidade
     const filteredRepos = useMemo(() => {
@@ -111,6 +128,7 @@ export default function DashboardClient({ initialRepos }: DashboardClientProps) 
                             isSelected={isSelected}
                             onToggle={() => toggleRepoSelection(repo)}
                             onAnalyze={() => handleAnalyze(repo)}
+                            onClear={() => clearPortfolioItem(repo.id)}
                             isAnalyzing={analyzing === repo.id}
                             objective={item?.objective}
                             onObjectiveChange={(val) => updatePortfolioItem(repo.id, { objective: val })}

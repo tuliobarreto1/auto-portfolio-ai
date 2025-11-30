@@ -19,15 +19,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             // Logged in users are authenticated, otherwise redirect to login page
             return !!auth
         },
-        async jwt({ token, account }) {
+        async jwt({ token, account, profile }) {
             if (account) {
                 token.accessToken = account.access_token
+            }
+            if (profile) {
+                token.githubId = profile.id
             }
             return token
         },
         async session({ session, token }) {
             // @ts-ignore
             session.accessToken = token.accessToken
+            // @ts-ignore
+            session.user.id = token.githubId
             return session
         },
     },
