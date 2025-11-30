@@ -91,6 +91,7 @@ export default async function PortfolioPage({
                 repos={repos}
                 items={items}
                 username={user.displayName || username}
+                usernameSlug={username}
                 hasResume={!!user.resume}
             />
         );

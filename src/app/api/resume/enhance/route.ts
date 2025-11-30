@@ -60,6 +60,14 @@ export async function POST(request: NextRequest) {
       url: item.repository.htmlUrl,
     }));
 
+    // Verificar se há projetos para analisar
+    if (projectsInfo.length === 0) {
+      return NextResponse.json(
+        { error: "Você precisa selecionar e analisar alguns projetos antes de aprimorar o currículo" },
+        { status: 400 }
+      );
+    }
+
     // Se for PDF, usar PDFDancer
     if (user.resume.fileType === "pdf") {
       // Usa a chave do ambiente

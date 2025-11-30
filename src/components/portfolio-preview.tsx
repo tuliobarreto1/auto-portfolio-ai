@@ -9,17 +9,18 @@ interface PortfolioPreviewProps {
     repos: Repository[];
     items: Record<number, PortfolioItem>;
     username: string;
+    usernameSlug?: string;
     hasResume?: boolean;
 }
 
-export function PortfolioPreview({ repos, items, username, hasResume = false }: PortfolioPreviewProps) {
+export function PortfolioPreview({ repos, items, username, usernameSlug, hasResume = false }: PortfolioPreviewProps) {
     return (
         <div className="min-h-screen bg-background p-8">
             <header className="max-w-6xl mx-auto mb-12 text-center space-y-4">
                 <h1 className="text-4xl font-bold tracking-tight">Portfólio de {username}</h1>
                 <p className="text-muted-foreground">Criado com AutoPortfolio AI</p>
-                {hasResume && (
-                    <Link href={`resume`}>
+                {hasResume && usernameSlug && (
+                    <Link href={`/portfolio/${usernameSlug}/resume`}>
                         <Button variant="outline" className="gap-2">
                             <FileText className="w-4 h-4" />
                             Ver Currículo
