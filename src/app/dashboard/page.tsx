@@ -5,6 +5,8 @@ import DashboardClient from "./dashboard-client";
 import { Repository } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
+import { EditDisplayName } from "@/components/edit-display-name";
+import { prisma } from "@/lib/prisma";
 
 export default async function Dashboard() {
     const session = await auth();
@@ -12,6 +14,22 @@ export default async function Dashboard() {
 
     // @ts-ignore
     const token = session.accessToken;
+    // @ts-ignore
+    const githubId = String(session.user?.id);
+
+    // Busca displayName do usuário no banco
+    let displayName = session.user?.name || "";
+    try {
+        const user = await prisma.user.findUnique({
+            where: { githubId },
+            select: { displayName: true },
+        });
+        if (user?.displayName) {
+            displayName = user.displayName;
+        }
+    } catch (e) {
+        console.error("Erro ao buscar displayName:", e);
+    }
 
     const octokit = new Octokit({ auth: token });
 
@@ -44,7 +62,7 @@ export default async function Dashboard() {
                 <header className="flex justify-between items-center">
                     <h1 className="text-3xl font-bold">Seus Repositórios</h1>
                     <div className="flex items-center gap-4">
-                        <span className="text-muted-foreground">Bem-vindo, {session.user?.name}</span>
+                        <EditDisplayName currentName={displayName} />
                         <form
                             action={async () => {
                                 "use server";

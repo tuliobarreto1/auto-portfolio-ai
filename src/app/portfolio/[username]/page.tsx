@@ -89,7 +89,7 @@ export default async function PortfolioPage({
             <PortfolioPreview
                 repos={repos}
                 items={items}
-                username={username}
+                username={user.displayName || username}
             />
         );
     } catch (error: any) {

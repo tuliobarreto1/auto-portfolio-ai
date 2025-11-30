@@ -15,6 +15,7 @@ model User {
   id             String          @id @default(cuid())
   githubId       String          @unique
   username       String
+  displayName    String?         // Nome para exibir no portfólio (editável)
   email          String?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
