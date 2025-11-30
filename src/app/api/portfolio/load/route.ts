@@ -10,7 +10,11 @@ export async function GET() {
 
     try {
         // @ts-ignore
-        const githubId = session.user.id || session.userId;
+        const rawGithubId = session.user.id || session.userId;
+        // Converte para string (GitHub ID vem como número)
+        const githubId = String(rawGithubId);
+
+        console.log("Load: Loading data for githubId:", githubId);
 
         // Busca o usuário
         const user = await prisma.user.findUnique({
@@ -24,11 +28,14 @@ export async function GET() {
         });
 
         if (!user) {
+            console.log("Load: No user found for githubId:", githubId);
             return NextResponse.json({
                 selectedRepos: [],
                 portfolioItems: {},
             });
         }
+
+        console.log("Load: User found, selected repos:", user.repositories.length);
 
         // Formata os repositórios selecionados
         const selectedRepos = user.repositories.map((repo) => ({
@@ -56,12 +63,17 @@ export async function GET() {
             };
         }
 
+        console.log("Load: Returning data successfully");
         return NextResponse.json({
             selectedRepos,
             portfolioItems,
         });
-    } catch (error) {
-        console.error("Erro ao carregar portfólio:", error);
-        return NextResponse.json({ error: "Falha ao carregar dados" }, { status: 500 });
+    } catch (error: any) {
+        console.error("Load: Error loading portfolio:", error);
+        console.error("Load: Error message:", error.message);
+        return NextResponse.json({
+            error: "Falha ao carregar dados",
+            details: error.message
+        }, { status: 500 });
     }
 }
