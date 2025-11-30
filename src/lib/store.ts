@@ -87,7 +87,7 @@ export const useStore = create<AppState>()(
                 try {
                     const selectedRepoIds = state.selectedRepos.map(r => r.id);
 
-                    await fetch('/api/portfolio/sync', {
+                    const response = await fetch('/api/portfolio/sync', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -96,8 +96,17 @@ export const useStore = create<AppState>()(
                             selectedRepoIds,
                         }),
                     });
-                } catch (error) {
-                    console.error('Erro ao sincronizar com servidor:', error);
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        console.error('Erro ao sincronizar:', errorData);
+                        throw new Error(errorData.details || errorData.error || 'Erro desconhecido');
+                    }
+
+                    console.log('Sincronização com servidor bem-sucedida');
+                } catch (error: any) {
+                    console.error('Erro ao sincronizar com servidor:', error.message);
+                    // Não mostra alert para não incomodar o usuário, apenas loga
                 } finally {
                     set({ isSyncing: false });
                 }

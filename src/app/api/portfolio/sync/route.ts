@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 export async function POST(req: Request) {
     const session = await auth();
     if (!session?.user) {
+        console.error("Sync: No session found");
         return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 
@@ -12,10 +13,27 @@ export async function POST(req: Request) {
         const { repositories, portfolioItems, selectedRepoIds } = await req.json();
 
         // @ts-ignore
-        const githubId = session.user.id || session.userId;
+        const rawGithubId = session.user.id || session.userId;
+        // Converte para string (GitHub ID vem como número)
+        const githubId = String(rawGithubId);
         // @ts-ignore - Usa o login (username) do GitHub, não o name (nome completo)
         const username = session.user.login || session.user.name || "";
         const email = session.user.email || "";
+
+        console.log("Sync: Starting sync for user:", { githubId, username, email });
+        console.log("Sync: Selected repos:", selectedRepoIds.length);
+        console.log("Sync: Total repos to sync:", repositories.length);
+        console.log("Sync: Portfolio items:", Object.keys(portfolioItems).length);
+
+        if (!rawGithubId) {
+            console.error("Sync: No githubId found in session");
+            return NextResponse.json({ error: "ID do GitHub não encontrado na sessão" }, { status: 400 });
+        }
+
+        if (!username) {
+            console.error("Sync: No username found in session");
+            return NextResponse.json({ error: "Username não encontrado na sessão" }, { status: 400 });
+        }
 
         // Cria ou atualiza o usuário
         const user = await prisma.user.upsert({
@@ -110,9 +128,15 @@ export async function POST(req: Request) {
             });
         }
 
+        console.log("Sync: Completed successfully");
         return NextResponse.json({ success: true });
-    } catch (error) {
-        console.error("Erro ao sincronizar portfólio:", error);
-        return NextResponse.json({ error: "Falha ao sincronizar dados" }, { status: 500 });
+    } catch (error: any) {
+        console.error("Sync: Error during sync:", error);
+        console.error("Sync: Error message:", error.message);
+        console.error("Sync: Error stack:", error.stack);
+        return NextResponse.json({
+            error: "Falha ao sincronizar dados",
+            details: error.message
+        }, { status: 500 });
     }
 }
