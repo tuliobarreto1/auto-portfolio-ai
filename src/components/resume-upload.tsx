@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Upload, FileText, Sparkles, Trash2, Download, Eye, Edit } from "lucide-react";
+import { Upload, FileText, Trash2, Download, Eye, Edit } from "lucide-react";
 import { ResumeEditor } from "@/components/resume-editor";
 
 interface ResumeData {
@@ -21,7 +21,6 @@ interface ResumeData {
 export function ResumeUpload() {
   const [resume, setResume] = useState<ResumeData | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [enhancing, setEnhancing] = useState(false);
   const [showEditor, setShowEditor] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -86,38 +85,6 @@ export function ResumeUpload() {
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
-    }
-  };
-
-  const handleEnhance = async () => {
-    if (!resume) return;
-
-    setEnhancing(true);
-    try {
-      const res = await fetch("/api/resume/enhance", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
-
-      const data = await res.json();
-      if (data.error) {
-        throw new Error(data.error);
-      }
-
-      if (resume.fileType === "pdf") {
-        // Recarregar dados do currículo
-        await loadResume();
-        alert("Currículo aprimorado com sucesso!");
-      } else {
-        // Para DOCX, mostrar sugestões
-        alert(
-          `Sugestões da IA:\n\nHabilidades: ${data.suggestions.skills.join(", ")}\n\nExperiência: ${data.suggestions.experience.join("\n")}\n\nDestaques: ${data.suggestions.highlights.join("\n")}`
-        );
-      }
-    } catch (error: any) {
-      alert(error.message || "Erro ao aprimorar currículo");
-    } finally {
-      setEnhancing(false);
     }
   };
 
@@ -236,19 +203,6 @@ export function ResumeUpload() {
                 </Button>
               )}
 
-              <Button
-                onClick={handleEnhance}
-                disabled={enhancing}
-                className="gap-2"
-              >
-                <Sparkles className="w-4 h-4" />
-                {enhancing
-                  ? "Aprimorando..."
-                  : resume.isEnhanced
-                  ? "Aprimorar Novamente"
-                  : "Aprimorar com IA"}
-              </Button>
-
               <input
                 ref={fileInputRef}
                 type="file"
@@ -277,16 +231,13 @@ export function ResumeUpload() {
 
             <div className="text-xs text-muted-foreground">
               <p>
-                • Envie seu currículo e escolha se quer salvá-lo como está ou
-                aprimorá-lo com IA
+                • Envie seu currículo em PDF ou DOCX
               </p>
               <p>
-                • A IA analisará seus projetos do GitHub e adicionará informações
-                relevantes
+                • Clique em "Editar" para modificar o conteúdo e escolher o template visual
               </p>
               <p>
-                • O currículo será exibido em seu portfólio público em uma página
-                dedicada
+                • O currículo será exibido em seu portfólio público em uma página dedicada
               </p>
             </div>
           </div>

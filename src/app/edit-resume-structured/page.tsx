@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Save, Loader2, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Plus, Trash2, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { StructuredResume } from "../api/resume/parse/route";
 
@@ -16,6 +16,7 @@ export default function EditResumeStructuredPage() {
   const [saving, setSaving] = useState(false);
   const [resumeData, setResumeData] = useState<StructuredResume | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<string>("classic");
+  const [enhancingField, setEnhancingField] = useState<string | null>(null);
 
   useEffect(() => {
     loadAndParseResume();
@@ -36,6 +37,39 @@ export default function EditResumeStructuredPage() {
       router.push("/dashboard");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleEnhanceText = async (
+    text: string,
+    fieldType: string,
+    fieldId: string,
+    onUpdate: (enhancedText: string) => void
+  ) => {
+    if (!text.trim()) {
+      alert("O campo está vazio. Digite algo para aprimorar.");
+      return;
+    }
+
+    setEnhancingField(fieldId);
+    try {
+      const res = await fetch("/api/resume/enhance-text", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, fieldType }),
+      });
+
+      const data = await res.json();
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      onUpdate(data.enhancedText);
+    } catch (error: any) {
+      alert(error.message || "Erro ao aprimorar texto");
+    } finally {
+      setEnhancingField(null);
     }
   };
 
@@ -214,13 +248,36 @@ export default function EditResumeStructuredPage() {
 
           {/* Resumo Profissional */}
           <Card className="p-6">
-            <h2 className="text-lg font-semibold mb-4">Resumo Profissional</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">Resumo Profissional</h2>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  handleEnhanceText(
+                    resumeData.resumoProfissional,
+                    "resumoProfissional",
+                    "resumoProfissional",
+                    (enhanced) =>
+                      setResumeData({ ...resumeData, resumoProfissional: enhanced })
+                  )
+                }
+                disabled={enhancingField === "resumoProfissional"}
+              >
+                {enhancingField === "resumoProfissional" ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Sparkles className="w-4 h-4" />
+                )}
+              </Button>
+            </div>
             <Textarea
               value={resumeData.resumoProfissional}
               onChange={(e) =>
                 setResumeData({ ...resumeData, resumoProfissional: e.target.value })
               }
               rows={4}
+              placeholder="Descreva sua experiência e objetivos profissionais..."
             />
           </Card>
 
@@ -274,7 +331,33 @@ export default function EditResumeStructuredPage() {
                   </div>
                   <div className="grid gap-3">
                     <div>
-                      <Label className="text-xs">Cargo</Label>
+                      <div className="flex items-center justify-between mb-1">
+                        <Label className="text-xs">Cargo</Label>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 w-6 p-0"
+                          onClick={() =>
+                            handleEnhanceText(
+                              exp.cargo,
+                              "cargo",
+                              `cargo-${index}`,
+                              (enhanced) => {
+                                const newExp = [...resumeData.experiencias];
+                                newExp[index].cargo = enhanced;
+                                setResumeData({ ...resumeData, experiencias: newExp });
+                              }
+                            )
+                          }
+                          disabled={enhancingField === `cargo-${index}`}
+                        >
+                          {enhancingField === `cargo-${index}` ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <Sparkles className="w-3 h-3" />
+                          )}
+                        </Button>
+                      </div>
                       <Input
                         value={exp.cargo}
                         onChange={(e) => {
@@ -282,6 +365,7 @@ export default function EditResumeStructuredPage() {
                           newExp[index].cargo = e.target.value;
                           setResumeData({ ...resumeData, experiencias: newExp });
                         }}
+                        placeholder="Ex: Desenvolvedor Full Stack"
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-2">
@@ -309,7 +393,33 @@ export default function EditResumeStructuredPage() {
                       </div>
                     </div>
                     <div>
-                      <Label className="text-xs">Descrição</Label>
+                      <div className="flex items-center justify-between mb-1">
+                        <Label className="text-xs">Descrição</Label>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 w-6 p-0"
+                          onClick={() =>
+                            handleEnhanceText(
+                              exp.descricao,
+                              "descricao",
+                              `descricao-${index}`,
+                              (enhanced) => {
+                                const newExp = [...resumeData.experiencias];
+                                newExp[index].descricao = enhanced;
+                                setResumeData({ ...resumeData, experiencias: newExp });
+                              }
+                            )
+                          }
+                          disabled={enhancingField === `descricao-${index}`}
+                        >
+                          {enhancingField === `descricao-${index}` ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <Sparkles className="w-3 h-3" />
+                          )}
+                        </Button>
+                      </div>
                       <Textarea
                         value={exp.descricao}
                         onChange={(e) => {
@@ -318,6 +428,7 @@ export default function EditResumeStructuredPage() {
                           setResumeData({ ...resumeData, experiencias: newExp });
                         }}
                         rows={2}
+                        placeholder="Descreva suas principais realizações e responsabilidades..."
                       />
                     </div>
                   </div>
