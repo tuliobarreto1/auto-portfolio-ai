@@ -189,7 +189,7 @@ IMPORTANTE:
     await prisma.resume.update({
       where: { id: user.resume.id },
       data: {
-        structuredData: structuredResume,
+        structuredData: JSON.parse(JSON.stringify(structuredResume)),
       },
     });
 

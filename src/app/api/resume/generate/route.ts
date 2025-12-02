@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
         fileUrl: `/uploads/resumes/${uniqueFileName}`,
         fileName: uniqueFileName,
         templateType: selectedTemplate,
-        structuredData: resumeData, // Salvar dados editados
+        structuredData: JSON.parse(JSON.stringify(resumeData)), // Salvar dados editados como JSON
       },
     });
 
