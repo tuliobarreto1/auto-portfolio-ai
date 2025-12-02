@@ -6,9 +6,10 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Save, Loader2, Plus, Trash2, Sparkles } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Plus, Trash2, Sparkles, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { StructuredResume } from "../api/resume/parse/route";
+import { Select } from "@/components/ui/select";
 
 export default function EditResumeStructuredPage() {
   const router = useRouter();
@@ -17,6 +18,7 @@ export default function EditResumeStructuredPage() {
   const [resumeData, setResumeData] = useState<StructuredResume | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<string>("classic");
   const [enhancingField, setEnhancingField] = useState<string | null>(null);
+  const [suggestingSkills, setSuggestingSkills] = useState(false);
 
   useEffect(() => {
     loadAndParseResume();
@@ -70,6 +72,68 @@ export default function EditResumeStructuredPage() {
       alert(error.message || "Erro ao aprimorar texto");
     } finally {
       setEnhancingField(null);
+    }
+  };
+
+  const handleSuggestSkills = async () => {
+    setSuggestingSkills(true);
+    try {
+      const res = await fetch("/api/resume/suggest-skills", {
+        method: "POST",
+      });
+
+      const data = await res.json();
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      if (data.skills && data.skills.length > 0) {
+        // Normalizar habilidades existentes para objetos
+        const existingSkills = resumeData!.habilidades.tecnicas.map(skill =>
+          typeof skill === "string" ? { name: skill, level: "Intermediário" } : skill
+        );
+
+        // Criar mapa de habilidades existentes por nome (case-insensitive)
+        const existingSkillsMap = new Map(
+          existingSkills.map(skill => [skill.name.toLowerCase(), skill])
+        );
+
+        // Adicionar apenas habilidades novas (evitar duplicatas)
+        const newSkills = data.skills.filter(
+          (skill: { name: string; level: string }) =>
+            !existingSkillsMap.has(skill.name.toLowerCase())
+        );
+
+        // Combinar habilidades existentes com as novas
+        const combinedSkills = [...existingSkills, ...newSkills];
+
+        setResumeData({
+          ...resumeData!,
+          habilidades: {
+            ...resumeData!.habilidades,
+            tecnicas: combinedSkills,
+          },
+          showSkillLevels: true,
+        });
+
+        if (newSkills.length > 0) {
+          alert(
+            `${newSkills.length} nova(s) habilidade(s) adicionada(s) com base em ${data.projectsAnalyzed} projeto(s)!\n` +
+            `${existingSkills.length} habilidade(s) existente(s) foram mantidas.`
+          );
+        } else {
+          alert(
+            `Nenhuma habilidade nova foi adicionada. Todas as ${data.skills.length} habilidades sugeridas já estão no currículo.`
+          );
+        }
+      } else {
+        alert("Nenhuma habilidade foi sugerida. Verifique se você tem projetos selecionados.");
+      }
+    } catch (error: any) {
+      alert(error.message || "Erro ao sugerir habilidades");
+    } finally {
+      setSuggestingSkills(false);
     }
   };
 
@@ -526,24 +590,138 @@ export default function EditResumeStructuredPage() {
 
           {/* Habilidades */}
           <Card className="p-6">
-            <h2 className="text-lg font-semibold mb-4">Habilidades</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">Habilidades</h2>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleSuggestSkills}
+                disabled={suggestingSkills}
+                className="gap-2"
+              >
+                {suggestingSkills ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Sparkles className="w-4 h-4" />
+                )}
+                {suggestingSkills ? "Analisando projetos..." : "Sugerir Habilidades"}
+              </Button>
+            </div>
             <div className="space-y-4">
+              {/* Habilidades Técnicas com Níveis */}
               <div>
-                <Label>Habilidades Técnicas (separadas por vírgula)</Label>
-                <Textarea
-                  value={resumeData.habilidades.tecnicas.join(", ")}
-                  onChange={(e) =>
+                <div className="flex items-center justify-between mb-2">
+                  <Label>Habilidades Técnicas</Label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={resumeData.showSkillLevels !== false}
+                      onChange={(e) =>
+                        setResumeData({
+                          ...resumeData,
+                          showSkillLevels: e.target.checked,
+                        })
+                      }
+                      className="rounded"
+                    />
+                    <span className="text-muted-foreground">
+                      Exibir níveis no currículo
+                    </span>
+                  </label>
+                </div>
+
+                {/* Lista de habilidades */}
+                <div className="space-y-2">
+                  {(() => {
+                    // Normalizar para sempre trabalhar com objetos
+                    const skills = resumeData.habilidades.tecnicas.map((skill) =>
+                      typeof skill === "string" ? { name: skill, level: "Intermediário" } : skill
+                    );
+
+                    return skills.map((skill, index) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <Input
+                          value={skill.name}
+                          onChange={(e) => {
+                            const newSkills = [...skills];
+                            newSkills[index] = { ...skill, name: e.target.value };
+                            setResumeData({
+                              ...resumeData,
+                              habilidades: {
+                                ...resumeData.habilidades,
+                                tecnicas: newSkills,
+                              },
+                            });
+                          }}
+                          placeholder="Nome da habilidade"
+                          className="flex-1"
+                        />
+                        <Select
+                          value={skill.level || "Intermediário"}
+                          onChange={(e) => {
+                            const newSkills = [...skills];
+                            newSkills[index] = { ...skill, level: e.target.value };
+                            setResumeData({
+                              ...resumeData,
+                              habilidades: {
+                                ...resumeData.habilidades,
+                                tecnicas: newSkills,
+                              },
+                            });
+                          }}
+                          className="w-40"
+                        >
+                          <option value="Básico">Básico</option>
+                          <option value="Intermediário">Intermediário</option>
+                          <option value="Avançado">Avançado</option>
+                          <option value="Expert">Expert</option>
+                        </Select>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            const newSkills = skills.filter((_, i) => i !== index);
+                            setResumeData({
+                              ...resumeData,
+                              habilidades: {
+                                ...resumeData.habilidades,
+                                tecnicas: newSkills,
+                              },
+                            });
+                          }}
+                          className="text-destructive"
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ));
+                  })()}
+                </div>
+
+                {/* Botão Adicionar Habilidade */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const skills = resumeData.habilidades.tecnicas.map((skill) =>
+                      typeof skill === "string" ? { name: skill, level: "Intermediário" } : skill
+                    );
                     setResumeData({
                       ...resumeData,
                       habilidades: {
                         ...resumeData.habilidades,
-                        tecnicas: e.target.value.split(",").map((s) => s.trim()),
+                        tecnicas: [...skills, { name: "", level: "Intermediário" }],
                       },
-                    })
-                  }
-                  rows={3}
-                />
+                    });
+                  }}
+                  className="mt-2 gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Adicionar Habilidade
+                </Button>
               </div>
+
+              {/* Idiomas */}
               <div>
                 <Label>Idiomas (separados por vírgula)</Label>
                 <Input

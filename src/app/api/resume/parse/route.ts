@@ -31,10 +31,11 @@ export interface StructuredResume {
     descricao: string;
   }>;
   habilidades: {
-    tecnicas: string[];
+    tecnicas: Array<string | { name: string; level?: string }>;
     idiomas: string[];
     outras: string[];
   };
+  showSkillLevels?: boolean; // Se deve exibir níveis no currículo final
   certificacoes: string[];
   projetos: Array<{
     nome: string;

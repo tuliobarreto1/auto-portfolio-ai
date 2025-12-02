@@ -17,6 +17,30 @@ export function sortExperiencesByDate(experiences: StructuredResume["experiencia
   });
 }
 
+// Helper para normalizar habilidades (sempre retorna objetos)
+function normalizeSkills(skills: Array<string | { name: string; level?: string }>) {
+  return skills.map(skill =>
+    typeof skill === "string" ? { name: skill, level: undefined } : skill
+  );
+}
+
+// Helper para formatar habilidades com ou sem níveis
+function formatSkills(
+  skills: Array<string | { name: string; level?: string }>,
+  showLevels: boolean = false,
+  separator: string = " • "
+): string {
+  const normalized = normalizeSkills(skills);
+  return normalized
+    .map(skill => {
+      if (showLevels && skill.level) {
+        return `${skill.name} (${skill.level})`;
+      }
+      return skill.name;
+    })
+    .join(separator);
+}
+
 // Template Clássico (atual, mais simples)
 export function generateClassicTemplate(resumeData: StructuredResume): jsPDF {
   const doc = new jsPDF();
@@ -105,7 +129,7 @@ export function generateClassicTemplate(resumeData: StructuredResume): jsPDF {
     addSpace(2);
     if (resumeData.habilidades.tecnicas?.length > 0) {
       addText('Técnicas:', 11, true, '#1a1a1a');
-      addText(resumeData.habilidades.tecnicas.join(' • '), 10, false, '#333333');
+      addText(formatSkills(resumeData.habilidades.tecnicas, resumeData.showSkillLevels, ' • '), 10, false, '#333333');
       addSpace(3);
     }
     if (resumeData.habilidades.idiomas?.length > 0) {
@@ -221,8 +245,12 @@ export function generateModernTemplate(resumeData: StructuredResume): jsPDF {
     ySidebar += 5;
     addTextSidebar('HABILIDADES', 12, true);
     ySidebar += 5;
-    resumeData.habilidades.tecnicas.forEach(skill => {
-      addTextSidebar(`• ${skill}`, 8);
+    const normalizedSkills = normalizeSkills(resumeData.habilidades.tecnicas);
+    normalizedSkills.forEach(skill => {
+      const skillText = resumeData.showSkillLevels && skill.level
+        ? `• ${skill.name} (${skill.level})`
+        : `• ${skill.name}`;
+      addTextSidebar(skillText, 8);
     });
   }
 
@@ -398,7 +426,7 @@ export function generateMinimalTemplate(resumeData: StructuredResume): jsPDF {
     yPos += 2;
     addLine(yPos);
     yPos += 5;
-    addText(resumeData.habilidades.tecnicas.join('  ·  '), 9, false, '#444444');
+    addText(formatSkills(resumeData.habilidades.tecnicas, resumeData.showSkillLevels, '  ·  '), 9, false, '#444444');
     yPos += 5;
   }
 
@@ -529,10 +557,17 @@ export function generateProfessionalTemplate(resumeData: StructuredResume): jsPD
     addSectionHeader('COMPETÊNCIAS');
 
     // Dividir habilidades em colunas
-    const skills = resumeData.habilidades.tecnicas;
+    const normalizedSkills = normalizeSkills(resumeData.habilidades.tecnicas);
+    const formattedSkills = normalizedSkills.map(skill => {
+      if (resumeData.showSkillLevels && skill.level) {
+        return `${skill.name} (${skill.level})`;
+      }
+      return skill.name;
+    });
+
     const skillsPerRow = 3;
-    for (let i = 0; i < skills.length; i += skillsPerRow) {
-      const rowSkills = skills.slice(i, i + skillsPerRow);
+    for (let i = 0; i < formattedSkills.length; i += skillsPerRow) {
+      const rowSkills = formattedSkills.slice(i, i + skillsPerRow);
       addText(rowSkills.join('  •  '), 9, false, '#444444');
     }
     yPos += 3;
