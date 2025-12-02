@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
@@ -82,7 +83,7 @@ export async function POST(request: NextRequest) {
         fileUrl: fileUrl,
         enhancedFileUrl: null, // Reset enhanced version
         isEnhanced: false,
-        structuredData: null, // Limpar cache - forçar reprocessamento
+        structuredData: Prisma.JsonNull, // Limpar cache - forçar reprocessamento
         updatedAt: new Date(),
       },
       create: {
