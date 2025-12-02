@@ -6,10 +6,11 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Save, Loader2, Plus, Trash2, Sparkles, X } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Plus, Trash2, Sparkles, X, ArrowUp, ArrowDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { StructuredResume } from "../api/resume/parse/route";
 import { Select } from "@/components/ui/select";
+import { sortExperiencesByDate } from "@/lib/resume-templates";
 
 export default function EditResumeStructuredPage() {
   const router = useRouter();
@@ -33,7 +34,13 @@ export default function EditResumeStructuredPage() {
         throw new Error(data.error);
       }
 
-      setResumeData(data.structured);
+      // Ordenar experiências do mais recente ao mais antigo
+      const structuredData = data.structured;
+      if (structuredData.experiencias && structuredData.experiencias.length > 0) {
+        structuredData.experiencias = sortExperiencesByDate(structuredData.experiencias);
+      }
+
+      setResumeData(structuredData);
     } catch (error: any) {
       alert(error.message || "Erro ao carregar currículo");
       router.push("/dashboard");
@@ -135,6 +142,26 @@ export default function EditResumeStructuredPage() {
     } finally {
       setSuggestingSkills(false);
     }
+  };
+
+  const moveExperienceUp = (index: number) => {
+    if (index === 0) return; // Já está no topo
+    const newExperiences = [...resumeData!.experiencias];
+    [newExperiences[index - 1], newExperiences[index]] = [newExperiences[index], newExperiences[index - 1]];
+    setResumeData({
+      ...resumeData!,
+      experiencias: newExperiences,
+    });
+  };
+
+  const moveExperienceDown = (index: number) => {
+    if (index === resumeData!.experiencias.length - 1) return; // Já está no final
+    const newExperiences = [...resumeData!.experiencias];
+    [newExperiences[index], newExperiences[index + 1]] = [newExperiences[index + 1], newExperiences[index]];
+    setResumeData({
+      ...resumeData!,
+      experiencias: newExperiences,
+    });
   };
 
   const handleSave = async () => {
@@ -372,27 +399,52 @@ export default function EditResumeStructuredPage() {
               </Button>
             </div>
             <div className="space-y-4">
-              {resumeData.experiencias.map((exp, index) => (
-                <Card key={index} className="p-4 bg-muted/30">
-                  <div className="flex items-start justify-between mb-4">
-                    <span className="text-sm font-semibold">
-                      Experiência #{index + 1}
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() =>
-                        setResumeData({
-                          ...resumeData,
-                          experiencias: resumeData.experiencias.filter(
-                            (_, i) => i !== index
-                          ),
-                        })
-                      }
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
+              {resumeData.experiencias.map((exp, index) => {
+                return (
+                  <Card key={index} className="p-4 bg-muted/30">
+                    <div className="flex items-start justify-between mb-4">
+                      <span className="text-sm font-semibold">
+                        Experiência #{index + 1}
+                      </span>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => moveExperienceUp(index)}
+                          disabled={index === 0}
+                          className="h-8 w-8"
+                          title="Mover para cima"
+                        >
+                          <ArrowUp className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => moveExperienceDown(index)}
+                          disabled={index === resumeData.experiencias.length - 1}
+                          className="h-8 w-8"
+                          title="Mover para baixo"
+                        >
+                          <ArrowDown className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() =>
+                            setResumeData({
+                              ...resumeData,
+                              experiencias: resumeData.experiencias.filter(
+                                (_, i) => i !== index
+                              ),
+                            })
+                          }
+                          className="h-8 w-8 text-destructive"
+                          title="Remover"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
                   <div className="grid gap-3">
                     <div>
                       <div className="flex items-center justify-between mb-1">
@@ -497,7 +549,8 @@ export default function EditResumeStructuredPage() {
                     </div>
                   </div>
                 </Card>
-              ))}
+              );
+              })}
             </div>
           </Card>
 

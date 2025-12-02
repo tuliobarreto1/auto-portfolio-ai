@@ -5,14 +5,17 @@ import { FileText, Download, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface ResumePageProps {
-  params: {
+  params: Promise<{
     username: string;
-  };
+  }>;
 }
 
 export default async function ResumePage({ params }: ResumePageProps) {
+  const resolvedParams = await params;
+  const username = decodeURIComponent(resolvedParams.username);
+
   const user = await prisma.user.findFirst({
-    where: { username: params.username },
+    where: { username: username },
     include: { resume: true },
   });
 
@@ -99,8 +102,11 @@ export default async function ResumePage({ params }: ResumePageProps) {
 }
 
 export async function generateMetadata({ params }: ResumePageProps) {
+  const resolvedParams = await params;
+  const username = decodeURIComponent(resolvedParams.username);
+
   const user = await prisma.user.findFirst({
-    where: { username: params.username },
+    where: { username: username },
   });
 
   if (!user) {

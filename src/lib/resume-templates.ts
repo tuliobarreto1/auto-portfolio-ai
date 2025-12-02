@@ -51,11 +51,7 @@ export function generateClassicTemplate(resumeData: StructuredResume): jsPDF {
 
   const addText = (text: string, fontSize: number, isBold: boolean = false, color: string = '#000000') => {
     doc.setFontSize(fontSize);
-    if (isBold) {
-      doc.setFont('helvetica', 'bold');
-    } else {
-      doc.setFont('helvetica', 'normal');
-    }
+    doc.setFont('helvetica', isBold ? 'bold' : 'normal');
 
     const r = parseInt(color.slice(1, 3), 16);
     const g = parseInt(color.slice(3, 5), 16);
@@ -63,98 +59,124 @@ export function generateClassicTemplate(resumeData: StructuredResume): jsPDF {
     doc.setTextColor(r, g, b);
 
     const lines = doc.splitTextToSize(text, maxWidth);
+    const lineHeight = fontSize * 0.35;
+
     lines.forEach((line: string) => {
       if (yPos > 280) {
         doc.addPage();
         yPos = 20;
       }
       doc.text(line, margin, yPos);
-      yPos += fontSize * 0.4;
+      yPos += lineHeight;
     });
-    yPos += 3;
+    yPos += 2;
   };
 
   const addSpace = (space: number) => {
     yPos += space;
   };
 
-  // Cabeçalho
-  addText(resumeData.personalInfo.nome || 'Nome não informado', 20, true, '#1a1a1a');
-  addSpace(2);
+  // Adicionar texto com suporte para múltiplos parágrafos separados por " | "
+  const addTextWithParagraphs = (text: string, fontSize: number, isBold: boolean = false, color: string = '#000000') => {
+    if (!text) return;
 
-  if (resumeData.personalInfo.email) addText(resumeData.personalInfo.email, 10, false, '#555555');
-  if (resumeData.personalInfo.telefone) addText(resumeData.personalInfo.telefone, 10, false, '#555555');
-  if (resumeData.personalInfo.linkedin) addText(resumeData.personalInfo.linkedin, 10, false, '#555555');
-  if (resumeData.personalInfo.github) addText(resumeData.personalInfo.github, 10, false, '#555555');
-  addSpace(5);
+    // Dividir por " | " para obter os parágrafos
+    const paragraphs = text.split(' | ').filter(p => p.trim());
 
+    paragraphs.forEach((paragraph, index) => {
+      addText(paragraph.trim(), fontSize, isBold, color);
+      // Adicionar espaço entre parágrafos (exceto no último)
+      if (index < paragraphs.length - 1) {
+        addSpace(2);
+      }
+    });
+  };
+
+  // Cabeçalho - Nome e contato
+  addText(resumeData.personalInfo.nome || 'Nome não informado', 22, true, '#1a1a1a');
+  addSpace(3);
+
+  if (resumeData.personalInfo.email) addText(resumeData.personalInfo.email, 9, false, '#555555');
+  if (resumeData.personalInfo.telefone) addText(resumeData.personalInfo.telefone, 9, false, '#555555');
+  if (resumeData.personalInfo.linkedin) addText(resumeData.personalInfo.linkedin, 9, false, '#555555');
+  if (resumeData.personalInfo.github) addText(resumeData.personalInfo.github, 9, false, '#555555');
+  addSpace(6);
+
+  // Resumo Profissional
   if (resumeData.resumoProfissional) {
-    addText('RESUMO PROFISSIONAL', 14, true, '#2563eb');
+    addText('RESUMO PROFISSIONAL', 13, true, '#2563eb');
     addSpace(2);
-    addText(resumeData.resumoProfissional, 10, false, '#333333');
-    addSpace(5);
+    addTextWithParagraphs(resumeData.resumoProfissional, 10, false, '#333333');
+    addSpace(6);
   }
 
-  // Ordenar experiências
+  // Experiências Profissionais (ordenadas)
   const sortedExperiences = sortExperiencesByDate(resumeData.experiencias);
 
   if (sortedExperiences.length > 0) {
-    addText('EXPERIÊNCIA PROFISSIONAL', 14, true, '#2563eb');
+    addText('EXPERIÊNCIA PROFISSIONAL', 13, true, '#2563eb');
     addSpace(2);
 
     sortedExperiences.forEach(exp => {
-      addText(exp.cargo || '', 12, true, '#1a1a1a');
-      addText(`${exp.empresa || ''} | ${exp.periodo || ''}`, 10, false, '#555555');
-      if (exp.descricao) addText(exp.descricao, 10, false, '#333333');
+      addText(exp.cargo || '', 11, true, '#1a1a1a');
+      addText(`${exp.empresa || ''} | ${exp.periodo || ''}`, 9, false, '#666666');
+      if (exp.descricao) addTextWithParagraphs(exp.descricao, 9, false, '#333333');
       if (exp.responsabilidades?.length > 0) {
-        exp.responsabilidades.forEach(resp => addText(`• ${resp}`, 10, false, '#333333'));
+        exp.responsabilidades.forEach(resp => addText(`• ${resp}`, 9, false, '#333333'));
       }
-      addSpace(5);
+      addSpace(4);
     });
+    addSpace(2);
   }
 
+  // Educação
   if (resumeData.educacao?.length > 0) {
-    addText('EDUCAÇÃO', 14, true, '#2563eb');
+    addText('EDUCAÇÃO', 13, true, '#2563eb');
     addSpace(2);
     resumeData.educacao.forEach(edu => {
-      addText(edu.curso || '', 12, true, '#1a1a1a');
-      addText(`${edu.instituicao || ''} | ${edu.periodo || ''}`, 10, false, '#555555');
-      if (edu.descricao) addText(edu.descricao, 10, false, '#333333');
-      addSpace(5);
+      addText(edu.curso || '', 11, true, '#1a1a1a');
+      addText(`${edu.instituicao || ''} | ${edu.periodo || ''}`, 9, false, '#666666');
+      if (edu.descricao) addTextWithParagraphs(edu.descricao, 9, false, '#333333');
+      addSpace(4);
     });
+    addSpace(2);
   }
 
+  // Habilidades
   if (resumeData.habilidades?.tecnicas?.length > 0 || resumeData.habilidades?.idiomas?.length > 0) {
-    addText('HABILIDADES', 14, true, '#2563eb');
+    addText('HABILIDADES', 13, true, '#2563eb');
     addSpace(2);
     if (resumeData.habilidades.tecnicas?.length > 0) {
-      addText('Técnicas:', 11, true, '#1a1a1a');
-      addText(formatSkills(resumeData.habilidades.tecnicas, resumeData.showSkillLevels, ' • '), 10, false, '#333333');
+      addText('Técnicas:', 10, true, '#1a1a1a');
+      addText(formatSkills(resumeData.habilidades.tecnicas, resumeData.showSkillLevels, ' • '), 9, false, '#333333');
       addSpace(3);
     }
     if (resumeData.habilidades.idiomas?.length > 0) {
-      addText('Idiomas:', 11, true, '#1a1a1a');
-      addText(resumeData.habilidades.idiomas.join(' • '), 10, false, '#333333');
+      addText('Idiomas:', 10, true, '#1a1a1a');
+      addText(resumeData.habilidades.idiomas.join(' • '), 9, false, '#333333');
       addSpace(3);
     }
     addSpace(2);
   }
 
+  // Projetos
   if (resumeData.projetos?.length > 0) {
-    addText('PROJETOS', 14, true, '#2563eb');
+    addText('PROJETOS', 13, true, '#2563eb');
     addSpace(2);
     resumeData.projetos.forEach(proj => {
-      addText(proj.nome || '', 12, true, '#1a1a1a');
-      if (proj.descricao) addText(proj.descricao, 10, false, '#333333');
-      if (proj.tecnologias?.length > 0) addText(`Tecnologias: ${proj.tecnologias.join(', ')}`, 10, false, '#555555');
-      addSpace(5);
+      addText(proj.nome || '', 11, true, '#1a1a1a');
+      if (proj.descricao) addTextWithParagraphs(proj.descricao, 9, false, '#333333');
+      if (proj.tecnologias?.length > 0) addText(`Tecnologias: ${proj.tecnologias.join(', ')}`, 8, false, '#666666');
+      addSpace(4);
     });
+    addSpace(2);
   }
 
+  // Certificações
   if (resumeData.certificacoes?.length > 0) {
-    addText('CERTIFICAÇÕES', 14, true, '#2563eb');
+    addText('CERTIFICAÇÕES', 13, true, '#2563eb');
     addSpace(2);
-    resumeData.certificacoes.forEach(cert => addText(`• ${cert}`, 10, false, '#333333'));
+    resumeData.certificacoes.forEach(cert => addText(`• ${cert}`, 9, false, '#333333'));
   }
 
   return doc;

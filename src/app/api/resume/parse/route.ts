@@ -165,8 +165,8 @@ Retorne um JSON com a seguinte estrutura:
       "cargo": "Cargo",
       "empresa": "Nome da empresa",
       "periodo": "Jan 2020 - Dez 2023",
-      "descricao": "Descrição breve",
-      "responsabilidades": ["resp1", "resp2"]
+      "descricao": "Descrição completa com todas as atividades",
+      "responsabilidades": []
     }
   ],
   "educacao": [
@@ -195,7 +195,14 @@ Retorne um JSON com a seguinte estrutura:
 IMPORTANTE:
 - Se alguma informação não estiver disponível, use string vazia "" ou array vazio []
 - Seja fiel ao texto original, não adicione informações que não existem
-- Mantenha a formatação e organização do currículo original`;
+- Para cada experiência profissional, coloque TODO o texto das atividades/responsabilidades no campo "descricao"
+- COPIE O CONTEÚDO EXATAMENTE como está. NÃO converta em tópicos ou bullets. NÃO reformate. NÃO resuma
+- Para preservar múltiplos parágrafos, separe-os com " | " (espaço-pipe-espaço) dentro da string. Exemplo: "Primeiro parágrafo | Segundo parágrafo | Terceiro parágrafo"
+- Deixe o campo "responsabilidades" sempre como array vazio []
+- Ordene as experiências da mais recente para a mais antiga (pela data de início)
+- CRÍTICO: O JSON deve ser válido. Não use quebras de linha literais dentro das strings. Use o separador " | " para indicar parágrafos diferentes
+- Se houver aspas duplas no texto original, escape-as como \\"
+- Garanta que o JSON retornado seja 100% válido e parseável`;
 
     const model = provider === 'deepseek' ? 'deepseek-chat' : 'gpt-4o-mini';
 
@@ -204,14 +211,27 @@ IMPORTANTE:
       messages: [
         {
           role: "system",
-          content: "Você é um assistente especializado em análise e estruturação de currículos. Seja preciso e fiel ao conteúdo original.",
+          content: "Você é um assistente especializado em análise e estruturação de currículos. Seja preciso e fiel ao conteúdo original. SEMPRE retorne JSON válido com caracteres especiais corretamente escapados.",
         },
         { role: "user", content: prompt },
       ],
       response_format: { type: "json_object" },
     });
 
-    const structuredResume = JSON.parse(completion.choices[0].message.content || "{}");
+    const rawContent = completion.choices[0].message.content || "{}";
+
+    let structuredResume;
+    try {
+      structuredResume = JSON.parse(rawContent);
+    } catch (parseError: any) {
+      console.error("Erro ao parsear JSON da IA:", parseError);
+      console.error("Conteúdo problemático (primeiros 1000 chars):", rawContent.substring(0, 1000));
+
+      throw new Error(
+        `A IA retornou um JSON inválido. Por favor, tente fazer upload do PDF novamente. ` +
+        `Erro: ${parseError.message}`
+      );
+    }
 
     // Salvar dados estruturados no banco para uso futuro
     await prisma.resume.update({
