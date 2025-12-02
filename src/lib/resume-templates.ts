@@ -28,9 +28,9 @@ export function generateClassicTemplate(resumeData: StructuredResume): jsPDF {
   const addText = (text: string, fontSize: number, isBold: boolean = false, color: string = '#000000') => {
     doc.setFontSize(fontSize);
     if (isBold) {
-      doc.setFont(undefined, 'bold');
+      doc.setFont('helvetica', 'bold');
     } else {
-      doc.setFont(undefined, 'normal');
+      doc.setFont('helvetica', 'normal');
     }
 
     const r = parseInt(color.slice(1, 3), 16);
@@ -153,7 +153,7 @@ export function generateModernTemplate(resumeData: StructuredResume): jsPDF {
 
   const addTextSidebar = (text: string, fontSize: number, isBold: boolean = false) => {
     doc.setFontSize(fontSize);
-    doc.setFont(undefined, isBold ? 'bold' : 'normal');
+    doc.setFont('helvetica', isBold ? 'bold' : 'normal');
     doc.setTextColor(255, 255, 255);
     const lines = doc.splitTextToSize(text, 45);
     lines.forEach((line: string) => {
@@ -171,7 +171,7 @@ export function generateModernTemplate(resumeData: StructuredResume): jsPDF {
 
   const addTextMain = (text: string, fontSize: number, isBold: boolean = false, color: string = '#1a1a1a') => {
     doc.setFontSize(fontSize);
-    doc.setFont(undefined, isBold ? 'bold' : 'normal');
+    doc.setFont('helvetica', isBold ? 'bold' : 'normal');
     const r = parseInt(color.slice(1, 3), 16);
     const g = parseInt(color.slice(3, 5), 16);
     const b = parseInt(color.slice(5, 7), 16);
@@ -313,7 +313,7 @@ export function generateMinimalTemplate(resumeData: StructuredResume): jsPDF {
 
   const addText = (text: string, fontSize: number, isBold: boolean = false, color: string = '#000000', align: 'left' | 'center' = 'left') => {
     doc.setFontSize(fontSize);
-    doc.setFont(undefined, isBold ? 'bold' : 'normal');
+    doc.setFont('helvetica', isBold ? 'bold' : 'normal');
     const r = parseInt(color.slice(1, 3), 16);
     const g = parseInt(color.slice(3, 5), 16);
     const b = parseInt(color.slice(5, 7), 16);
@@ -434,7 +434,7 @@ export function generateProfessionalTemplate(resumeData: StructuredResume): jsPD
 
   const addText = (text: string, fontSize: number, isBold: boolean = false, color: string = '#000000') => {
     doc.setFontSize(fontSize);
-    doc.setFont(undefined, isBold ? 'bold' : 'normal');
+    doc.setFont('helvetica', isBold ? 'bold' : 'normal');
     const r = parseInt(color.slice(1, 3), 16);
     const g = parseInt(color.slice(3, 5), 16);
     const b = parseInt(color.slice(5, 7), 16);
@@ -457,7 +457,7 @@ export function generateProfessionalTemplate(resumeData: StructuredResume): jsPD
     doc.rect(margin, yPos - 5, 40, 6, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(11);
-    doc.setFont(undefined, 'bold');
+    doc.setFont('helvetica', 'bold');
     doc.text(title, margin + 2, yPos);
     yPos += 8;
   };
