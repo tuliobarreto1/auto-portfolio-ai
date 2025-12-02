@@ -4,7 +4,8 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Upload, FileText, Sparkles, Trash2, Download, Eye } from "lucide-react";
+import { Upload, FileText, Sparkles, Trash2, Download, Eye, Edit } from "lucide-react";
+import { ResumeEditor } from "@/components/resume-editor";
 
 interface ResumeData {
   id: string;
@@ -21,6 +22,7 @@ export function ResumeUpload() {
   const [resume, setResume] = useState<ResumeData | null>(null);
   const [uploading, setUploading] = useState(false);
   const [enhancing, setEnhancing] = useState(false);
+  const [showEditor, setShowEditor] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Carregar currículo existente
@@ -224,6 +226,16 @@ export function ResumeUpload() {
                 Baixar
               </Button>
 
+              {resume.fileType === "pdf" && (
+                <Button
+                  variant="outline"
+                  onClick={() => setShowEditor(true)}
+                >
+                  <Edit className="w-4 h-4 mr-2" />
+                  Editar
+                </Button>
+              )}
+
               <Button
                 onClick={handleEnhance}
                 disabled={enhancing}
@@ -252,6 +264,16 @@ export function ResumeUpload() {
                 {uploading ? "Enviando..." : "Substituir Arquivo"}
               </Button>
             </div>
+
+            {showEditor && (
+              <ResumeEditor
+                resumeId={resume.id}
+                onClose={() => {
+                  setShowEditor(false);
+                  loadResume();
+                }}
+              />
+            )}
 
             <div className="text-xs text-muted-foreground">
               <p>
