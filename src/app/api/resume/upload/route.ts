@@ -82,6 +82,7 @@ export async function POST(request: NextRequest) {
         fileUrl: fileUrl,
         enhancedFileUrl: null, // Reset enhanced version
         isEnhanced: false,
+        structuredData: null, // Limpar cache - forçar reprocessamento
         updatedAt: new Date(),
       },
       create: {
@@ -91,6 +92,8 @@ export async function POST(request: NextRequest) {
         fileUrl: fileUrl,
       },
     });
+
+    console.log("Novo PDF enviado - cache de dados estruturados limpo");
 
     return NextResponse.json({
       success: true,

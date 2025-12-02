@@ -62,6 +62,19 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Se já tiver dados estruturados salvos, retornar do cache
+    if (user.resume.structuredData) {
+      console.log("Usando dados estruturados do cache");
+      return NextResponse.json({
+        success: true,
+        originalText: "Dados do cache (PDF já processado anteriormente)",
+        structured: user.resume.structuredData,
+        fromCache: true,
+      });
+    }
+
+    console.log("Processando PDF pela primeira vez...");
+
     // Extrair texto do PDF usando pdf2json
     const pdfPath = path.join(process.cwd(), "public", user.resume.fileUrl);
 
@@ -172,10 +185,21 @@ IMPORTANTE:
 
     const structuredResume = JSON.parse(completion.choices[0].message.content || "{}");
 
+    // Salvar dados estruturados no banco para uso futuro
+    await prisma.resume.update({
+      where: { id: user.resume.id },
+      data: {
+        structuredData: structuredResume,
+      },
+    });
+
+    console.log("Dados estruturados salvos no banco");
+
     return NextResponse.json({
       success: true,
       originalText: extractedText,
       structured: structuredResume,
+      fromCache: false,
     });
   } catch (error: any) {
     console.error("Erro ao processar currículo:", error);

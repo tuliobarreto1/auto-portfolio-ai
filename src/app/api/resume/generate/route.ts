@@ -61,15 +61,18 @@ export async function POST(request: NextRequest) {
     const outputPath = path.join(outputDir, uniqueFileName);
     await writeFile(outputPath, pdfBuffer);
 
-    // Atualizar no banco de dados
+    // Atualizar no banco de dados (incluindo dados estruturados editados)
     await prisma.resume.update({
       where: { id: user.resume.id },
       data: {
         fileUrl: `/uploads/resumes/${uniqueFileName}`,
         fileName: uniqueFileName,
         templateType: selectedTemplate,
+        structuredData: resumeData, // Salvar dados editados
       },
     });
+
+    console.log("Currículo gerado e dados estruturados atualizados");
 
     return NextResponse.json({
       success: true,

@@ -70,6 +70,7 @@ model Resume {
   enhancedFileUrl  String?  // URL do arquivo processado pela IA (se aplicável)
   isEnhanced       Boolean  @default(false) // Se foi processado pela IA
   templateType     String   @default("classic") // Tipo de template: classic, modern, minimal, professional
+  structuredData   Json?    // Dados estruturados do currículo (cache para evitar reprocessamento)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 }
