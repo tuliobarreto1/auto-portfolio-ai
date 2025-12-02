@@ -64,10 +64,12 @@ model Resume {
   userId           String   @unique
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   originalFileName String   // Nome original do arquivo
+  fileName         String   @default("resume.pdf") // Nome do arquivo atual
   fileType         String   // pdf ou docx
   fileUrl          String   // URL do arquivo armazenado
   enhancedFileUrl  String?  // URL do arquivo processado pela IA (se aplicável)
   isEnhanced       Boolean  @default(false) // Se foi processado pela IA
+  templateType     String   @default("classic") // Tipo de template: classic, modern, minimal, professional
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 }

@@ -15,6 +15,7 @@ export default function EditResumeStructuredPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [resumeData, setResumeData] = useState<StructuredResume | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>("classic");
 
   useEffect(() => {
     loadAndParseResume();
@@ -46,7 +47,7 @@ export default function EditResumeStructuredPage() {
       const res = await fetch("/api/resume/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ resumeData }),
+        body: JSON.stringify({ resumeData, templateType: selectedTemplate }),
       });
 
       const data = await res.json();
@@ -113,6 +114,37 @@ export default function EditResumeStructuredPage() {
       {/* Content */}
       <div className="container mx-auto px-4 py-6 max-w-4xl">
         <div className="space-y-6">
+          {/* Seletor de Template */}
+          <Card className="p-6">
+            <h2 className="text-lg font-semibold mb-4">Escolha o Template</h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              Selecione o estilo visual do seu currículo
+            </p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {[
+                { id: 'classic', name: 'Clássico', desc: 'Simples e direto' },
+                { id: 'modern', name: 'Moderno', desc: 'Com sidebar colorida' },
+                { id: 'minimal', name: 'Minimalista', desc: 'Clean e elegante' },
+                { id: 'professional', name: 'Profissional', desc: 'Formal e corporativo' },
+              ].map((template) => (
+                <button
+                  key={template.id}
+                  onClick={() => setSelectedTemplate(template.id)}
+                  className={`p-4 border-2 rounded-lg text-left transition-all ${
+                    selectedTemplate === template.id
+                      ? 'border-primary bg-primary/5'
+                      : 'border-muted hover:border-primary/50'
+                  }`}
+                >
+                  <div className="font-semibold text-sm">{template.name}</div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {template.desc}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </Card>
+
           {/* Informações Pessoais */}
           <Card className="p-6">
             <h2 className="text-lg font-semibold mb-4">Informações Pessoais</h2>
