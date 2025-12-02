@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { v4 as uuidv4 } from "uuid";
-import path from "path";
-import { writeFile, mkdir } from "fs/promises";
-import { existsSync } from "fs";
+import { put } from "@vercel/blob";
 import type { StructuredResume } from "../parse/route";
 import { generatePDFByTemplate } from "@/lib/resume-templates";
 
@@ -50,22 +47,18 @@ export async function POST(request: NextRequest) {
     // Gerar PDF como buffer
     const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
 
-    // Garantir que o diretório existe
-    const outputDir = path.join(process.cwd(), "public", "uploads", "resumes");
-    if (!existsSync(outputDir)) {
-      await mkdir(outputDir, { recursive: true });
-    }
-
-    // Salvar PDF
-    const uniqueFileName = `structured-${uuidv4()}.pdf`;
-    const outputPath = path.join(outputDir, uniqueFileName);
-    await writeFile(outputPath, pdfBuffer);
+    // Upload para Vercel Blob Storage
+    const uniqueFileName = `resumes/${user.githubId}-structured-${Date.now()}.pdf`;
+    const blob = await put(uniqueFileName, pdfBuffer, {
+      access: 'public',
+      contentType: 'application/pdf',
+    });
 
     // Atualizar no banco de dados (incluindo dados estruturados editados)
     await prisma.resume.update({
       where: { id: user.resume.id },
       data: {
-        fileUrl: `/uploads/resumes/${uniqueFileName}`,
+        fileUrl: blob.url,
         fileName: uniqueFileName,
         templateType: selectedTemplate,
         structuredData: JSON.parse(JSON.stringify(resumeData)), // Salvar dados editados como JSON
@@ -76,7 +69,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      fileUrl: `/uploads/resumes/${uniqueFileName}`,
+      fileUrl: blob.url,
     });
   } catch (error: any) {
     console.error("Erro ao gerar PDF:", error);

@@ -2,9 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
-import { v4 as uuidv4 } from "uuid";
+import { put } from "@vercel/blob";
 
 export async function POST(request: NextRequest) {
   try {
@@ -60,19 +58,15 @@ export async function POST(request: NextRequest) {
 
     // Gerar nome único para o arquivo
     const fileExtension = file.type === "application/pdf" ? "pdf" : "docx";
-    const uniqueFileName = `${uuidv4()}.${fileExtension}`;
-    
-    // Criar diretório de uploads se não existir
-    const uploadsDir = path.join(process.cwd(), "public", "uploads", "resumes");
-    await mkdir(uploadsDir, { recursive: true });
+    const uniqueFileName = `resumes/${user.githubId}-${Date.now()}.${fileExtension}`;
 
-    // Salvar arquivo
-    const filePath = path.join(uploadsDir, uniqueFileName);
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    await writeFile(filePath, buffer);
+    // Upload para Vercel Blob Storage
+    const blob = await put(uniqueFileName, file, {
+      access: 'public',
+      contentType: file.type,
+    });
 
-    const fileUrl = `/uploads/resumes/${uniqueFileName}`;
+    const fileUrl = blob.url;
 
     // Salvar ou atualizar no banco de dados
     const resume = await prisma.resume.upsert({

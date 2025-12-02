@@ -3,6 +3,8 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import OpenAI from "openai";
 import path from "path";
+import { writeFile, unlink } from "fs/promises";
+import { tmpdir } from "os";
 
 // Interface para o currículo estruturado
 export interface StructuredResume {
@@ -75,8 +77,24 @@ export async function GET(request: NextRequest) {
 
     console.log("Processando PDF pela primeira vez...");
 
-    // Extrair texto do PDF usando pdf2json
-    const pdfPath = path.join(process.cwd(), "public", user.resume.fileUrl);
+    // Determinar se é URL do Blob ou caminho local
+    let pdfPath: string;
+    let isTemporaryFile = false;
+
+    if (user.resume.fileUrl.startsWith('http')) {
+      // Baixar do Blob Storage para arquivo temporário
+      console.log("Baixando PDF do Blob Storage...");
+      const response = await fetch(user.resume.fileUrl);
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+
+      pdfPath = path.join(tmpdir(), `resume-${user.githubId}-${Date.now()}.pdf`);
+      await writeFile(pdfPath, buffer);
+      isTemporaryFile = true;
+    } else {
+      // Usar caminho local
+      pdfPath = path.join(process.cwd(), "public", user.resume.fileUrl);
+    }
 
     const extractedText = await new Promise<string>((resolve, reject) => {
       const PDFParser = require("pdf2json");
@@ -98,6 +116,15 @@ export async function GET(request: NextRequest) {
 
       pdfParser.loadPDF(pdfPath);
     });
+
+    // Limpar arquivo temporário se foi baixado
+    if (isTemporaryFile) {
+      try {
+        await unlink(pdfPath);
+      } catch (err) {
+        console.error("Erro ao deletar arquivo temporário:", err);
+      }
+    }
 
     // Usar DeepSeek para estruturar o conteúdo
     const apiKey = process.env.OPENAI_API_KEY;
