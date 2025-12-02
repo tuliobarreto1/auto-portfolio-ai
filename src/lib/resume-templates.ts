@@ -92,6 +92,54 @@ export function generateClassicTemplate(resumeData: StructuredResume): jsPDF {
     });
   };
 
+  // Adicionar lista de itens em múltiplas colunas
+  const addItemsInColumns = (items: string[], fontSize: number, numColumns: number = 4, color: string = '#333333') => {
+    if (!items || items.length === 0) return;
+
+    doc.setFontSize(fontSize);
+    doc.setFont('helvetica', 'normal');
+    const r = parseInt(color.slice(1, 3), 16);
+    const g = parseInt(color.slice(3, 5), 16);
+    const b = parseInt(color.slice(5, 7), 16);
+    doc.setTextColor(r, g, b);
+
+    const columnWidth = maxWidth / numColumns;
+    const lineHeight = fontSize * 0.35;
+    const startY = yPos;
+
+    // Calcular quantos itens por coluna
+    const itemsPerColumn = Math.ceil(items.length / numColumns);
+
+    for (let col = 0; col < numColumns; col++) {
+      const startIdx = col * itemsPerColumn;
+      const endIdx = Math.min(startIdx + itemsPerColumn, items.length);
+      const columnItems = items.slice(startIdx, endIdx);
+
+      let currentY = startY;
+      const xPos = margin + (col * columnWidth);
+
+      columnItems.forEach(item => {
+        if (currentY > 280) {
+          doc.addPage();
+          currentY = 20;
+        }
+        // Truncar item se for muito longo para a coluna
+        const truncatedItem = item.length > 25 ? item.substring(0, 22) + '...' : item;
+        doc.text(`• ${truncatedItem}`, xPos, currentY);
+        currentY += lineHeight + 1;
+      });
+
+      // Atualizar yPos para a maior altura usada
+      if (currentY - startY > yPos - startY) {
+        yPos = currentY;
+      }
+    }
+
+    // Garantir que yPos esteja após todas as colunas
+    yPos = Math.max(yPos, startY + (itemsPerColumn * (lineHeight + 1)));
+    yPos += 2;
+  };
+
   // Cabeçalho - Nome e contato
   addText(resumeData.personalInfo.nome || 'Nome não informado', 22, true, '#1a1a1a');
   addSpace(3);
@@ -148,7 +196,19 @@ export function generateClassicTemplate(resumeData: StructuredResume): jsPDF {
     addSpace(2);
     if (resumeData.habilidades.tecnicas?.length > 0) {
       addText('Técnicas:', 10, true, '#1a1a1a');
-      addText(formatSkills(resumeData.habilidades.tecnicas, resumeData.showSkillLevels, ' • '), 9, false, '#333333');
+      addSpace(1);
+
+      // Converter habilidades para array de strings
+      const normalized = normalizeSkills(resumeData.habilidades.tecnicas);
+      const skillStrings = normalized.map(skill => {
+        if (resumeData.showSkillLevels && skill.level) {
+          return `${skill.name} (${skill.level})`;
+        }
+        return skill.name;
+      });
+
+      // Renderizar em 4 colunas
+      addItemsInColumns(skillStrings, 9, 4, '#333333');
       addSpace(3);
     }
     if (resumeData.habilidades.idiomas?.length > 0) {
