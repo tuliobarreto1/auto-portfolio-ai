@@ -19,15 +19,17 @@ $$ LANGUAGE plpgsql;
 
 -- ============================================================
 -- profiles  (dados publicos de identidade do app)
---   substitui o model User. id = auth.users.id (UUID).
+--   id = auth.users.id (UUID da identidade InfraForge).
+--   github_id / username sao preenchidos quando o usuario conecta
+--   a conta do GitHub dentro do app (ficam NULL ate la).
 --   NAO guarda segredos: leitura publica para o portfolio.
 -- ============================================================
 CREATE TABLE public.profiles (
   id           uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  github_id    text NOT NULL UNIQUE,         -- id numerico do GitHub (string)
-  username     text NOT NULL UNIQUE,         -- login do GitHub (slug do portfolio)
+  email        text,                         -- email da identidade InfraForge
+  github_id    text UNIQUE,                  -- id numerico do GitHub (ao conectar)
+  username     text UNIQUE,                  -- login do GitHub / slug do portfolio
   display_name text,                         -- nome editavel exibido no portfolio
-  email        text,
   created_at   timestamptz NOT NULL DEFAULT now(),
   updated_at   timestamptz NOT NULL DEFAULT now()
 );

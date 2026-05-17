@@ -10,8 +10,8 @@ import { encryptToken, decryptToken } from "./crypto";
 
 export interface Profile {
   id: string;
-  githubId: string;
-  username: string;
+  githubId: string | null;
+  username: string | null;
   displayName: string | null;
   email: string | null;
 }
@@ -106,14 +106,6 @@ export function getProfileById(c: InfraForgeClient, id: string) {
   return first<Profile>(c, `SELECT ${PROFILE_COLS} FROM profiles WHERE id = $1`, [id]);
 }
 
-export function getProfileByGithubId(c: InfraForgeClient, githubId: string) {
-  return first<Profile>(
-    c,
-    `SELECT ${PROFILE_COLS} FROM profiles WHERE github_id = $1`,
-    [githubId],
-  );
-}
-
 export function getProfileByUsername(c: InfraForgeClient, username: string) {
   return first<Profile>(
     c,
@@ -122,18 +114,31 @@ export function getProfileByUsername(c: InfraForgeClient, username: string) {
   );
 }
 
-export async function upsertProfile(
+// Cria o profile minimo logo apos o login (identidade InfraForge).
+export async function ensureProfile(
   c: InfraForgeClient,
-  p: { id: string; githubId: string; username: string; email: string | null },
+  id: string,
+  email: string | null,
 ): Promise<void> {
   await rows(
     c,
-    `INSERT INTO profiles (id, github_id, username, email)
-     VALUES ($1, $2, $3, $4)
-     ON CONFLICT (id) DO UPDATE SET
-       username = EXCLUDED.username,
-       email = EXCLUDED.email`,
-    [p.id, p.githubId, p.username, p.email],
+    `INSERT INTO profiles (id, email) VALUES ($1, $2)
+     ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email`,
+    [id, email],
+  );
+}
+
+// Vincula a conta do GitHub ao profile (apos o OAuth de conexao).
+export async function setGithubIdentity(
+  c: InfraForgeClient,
+  id: string,
+  githubId: string,
+  username: string,
+): Promise<void> {
+  await rows(
+    c,
+    `UPDATE profiles SET github_id = $2, username = $3 WHERE id = $1`,
+    [id, githubId, username],
   );
 }
 
