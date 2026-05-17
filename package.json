@@ -16,7 +16,12 @@
     "framer-motion": "^12.23.24",
     "jspdf": "^3.0.4",
     "lucide-react": "^0.555.0",
+<<<<<<< HEAD
     "next": "16.0.5",
+=======
+    "next": "16.0.10",
+    "next-auth": "^5.0.0-beta.30",
+>>>>>>> 05aff91e114ec67fec8ec970e07240d6bfe1afa2
     "octokit": "^5.0.5",
     "openai": "^6.9.1",
     "pdf-lib": "^1.17.1",
