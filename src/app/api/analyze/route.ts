@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { getRepoContent } from "@/lib/github";
-import { auth } from "@/auth";
+import { getServerSession } from "@/lib/session";
+import { authedClient } from "@/lib/infraforge";
+import { getGithubToken } from "@/lib/db";
 
 export async function POST(req: Request) {
-    const session = await auth();
+    const session = await getServerSession();
     if (!session) {
         return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
@@ -20,8 +22,13 @@ export async function POST(req: Request) {
     }
 
     try {
-        // @ts-ignore
-        const token = session.accessToken as string;
+        const token = await getGithubToken(authedClient(session.jwt), session.userId);
+        if (!token) {
+            return NextResponse.json(
+                { error: "Token do GitHub indisponível. Faça login novamente." },
+                { status: 401 },
+            );
+        }
         const content = await getRepoContent(owner, repoName, token);
 
         const openai = new OpenAI({

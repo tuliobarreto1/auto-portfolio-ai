@@ -1,43 +1,26 @@
 import { PortfolioPreview } from "@/components/portfolio-preview";
-import { prisma } from "@/lib/prisma";
+import { serviceClient } from "@/lib/infraforge";
+import {
+    getProfileByUsername,
+    getSelectedRepositories,
+    getPortfolioItems,
+    getResume,
+} from "@/lib/db";
 
 export default async function PortfolioPage({
     params
 }: {
     params: Promise<{ username: string }>
 }) {
-    // Await params diretamente (Next.js 15)
     const resolvedParams = await params;
     const username = decodeURIComponent(resolvedParams.username);
 
     try {
-        console.log("Portfolio: Buscando portfólio para username:", username);
+        const client = await serviceClient();
 
-        // Busca o usuário pelo username
-        let user;
-        try {
-            user = await prisma.user.findFirst({
-                where: { username },
-                include: {
-                    repositories: {
-                        where: { selected: true },
-                    },
-                    portfolioItems: true,
-                    resume: true,
-                },
-            });
-        } catch (dbError: any) {
-            console.error("Portfolio: Database error:", dbError);
-            throw new Error(`Erro de conexão com banco de dados: ${dbError.message}`);
-        }
+        const profile = await getProfileByUsername(client, username);
 
-        console.log("Portfolio: Usuário encontrado:", !!user);
-        if (user) {
-            console.log("Portfolio: Repositórios selecionados:", user.repositories.length);
-            console.log("Portfolio: Portfolio items:", user.portfolioItems.length);
-        }
-
-        if (!user) {
+        if (!profile) {
             return (
                 <div className="min-h-screen flex items-center justify-center bg-background">
                     <div className="text-center space-y-4">
@@ -49,7 +32,9 @@ export default async function PortfolioPage({
             );
         }
 
-        if (user.repositories.length === 0) {
+        const repositories = await getSelectedRepositories(client, profile.id);
+
+        if (repositories.length === 0) {
             return (
                 <div className="min-h-screen flex items-center justify-center bg-background">
                     <div className="text-center space-y-4">
@@ -60,39 +45,40 @@ export default async function PortfolioPage({
             );
         }
 
-    // Formata os repositórios para o formato esperado
-    const repos = user.repositories.map((repo) => ({
-        id: repo.id,
-        name: repo.name,
-        full_name: repo.fullName,
-        description: repo.description,
-        html_url: repo.htmlUrl,
-        language: repo.language,
-        stargazers_count: repo.stargazersCount,
-        updated_at: repo.updatedAt.toISOString(),
-        private: repo.private,
-    }));
+        const portfolioItems = await getPortfolioItems(client, profile.id);
+        const resume = await getResume(client, profile.id);
 
-    // Formata os portfolio items
-    const items: Record<number, any> = {};
-    for (const item of user.portfolioItems) {
-        items[item.repoId] = {
-            repoId: item.repoId,
-            objective: item.objective,
-            features: item.features,
-            technicalSummary: item.technicalSummary,
-            demoUrl: item.demoUrl,
-            recordingUrl: item.recordingUrl,
-        };
-    }
+        const repos = repositories.map((repo) => ({
+            id: repo.id,
+            name: repo.name,
+            full_name: repo.fullName,
+            description: repo.description,
+            html_url: repo.htmlUrl,
+            language: repo.language,
+            stargazers_count: repo.stargazersCount,
+            updated_at: repo.updatedAt,
+            private: repo.private,
+        }));
+
+        const items: Record<number, any> = {};
+        for (const item of portfolioItems) {
+            items[item.repoId] = {
+                repoId: item.repoId,
+                objective: item.objective,
+                features: item.features,
+                technicalSummary: item.technicalSummary,
+                demoUrl: item.demoUrl,
+                recordingUrl: item.recordingUrl,
+            };
+        }
 
         return (
             <PortfolioPreview
                 repos={repos}
                 items={items}
-                username={user.displayName || username}
+                username={profile.displayName || username}
                 usernameSlug={username}
-                hasResume={!!user.resume}
+                hasResume={!!resume}
             />
         );
     } catch (error: any) {

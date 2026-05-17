@@ -1,40 +1,29 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { auth } from "@/auth";
+import { getServerSession } from "@/lib/session";
+import { authedClient } from "@/lib/infraforge";
+import { getProfileById, getSelectedRepositories, getPortfolioItems } from "@/lib/db";
 
+// Endpoint de debug - sob RLS so e possivel inspecionar o proprio usuario.
 export async function GET() {
     try {
-        // Apenas para debug - remova em produção
-        const session = await auth();
-
+        const session = await getServerSession();
         if (!session) {
             return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
         }
 
-        const users = await prisma.user.findMany({
-            include: {
-                repositories: {
-                    where: { selected: true }
-                },
-                portfolioItems: true,
-            },
-        });
+        const client = authedClient(session.jwt);
+        const profile = await getProfileById(client, session.userId);
+        const repos = await getSelectedRepositories(client, session.userId);
+        const items = await getPortfolioItems(client, session.userId);
 
         return NextResponse.json({
-            total: users.length,
-            users: users.map(u => ({
-                username: u.username,
-                githubId: u.githubId,
-                selectedRepos: u.repositories.length,
-                portfolioItems: u.portfolioItems.length,
-            })),
-            currentSession: {
-                // @ts-ignore
-                login: session.user?.login,
-                name: session.user?.name,
-                // @ts-ignore
-                id: session.user?.id,
-            }
+            currentUser: {
+                userId: session.userId,
+                username: profile?.username,
+                githubId: profile?.githubId,
+                selectedRepos: repos.length,
+                portfolioItems: items.length,
+            },
         });
     } catch (error: any) {
         console.error("Debug error:", error);

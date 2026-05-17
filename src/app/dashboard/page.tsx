@@ -1,37 +1,27 @@
-import { auth, signOut } from "@/auth";
-import { Octokit } from "octokit";
 import { redirect } from "next/navigation";
+import { Octokit } from "octokit";
 import DashboardClient from "./dashboard-client";
 import { Repository } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
 import { EditDisplayName } from "@/components/edit-display-name";
-import { prisma } from "@/lib/prisma";
+import { getServerSession, clearSessionCookie } from "@/lib/session";
+import { authedClient } from "@/lib/infraforge";
+import { getProfileById, getGithubToken } from "@/lib/db";
 
 export default async function Dashboard() {
-    const session = await auth();
+    const session = await getServerSession();
     if (!session) redirect("/");
 
-    // @ts-ignore
-    const token = session.accessToken;
-    // @ts-ignore
-    const githubId = String(session.user?.id);
+    const client = authedClient(session.jwt);
 
-    // Busca displayName do usuário no banco
-    let displayName = session.user?.name || "";
-    try {
-        const user = await prisma.user.findUnique({
-            where: { githubId },
-            select: { displayName: true },
-        });
-        if (user?.displayName) {
-            displayName = user.displayName;
-        }
-    } catch (e) {
-        console.error("Erro ao buscar displayName:", e);
-    }
+    const profile = await getProfileById(client, session.userId);
+    if (!profile) redirect("/");
 
-    const octokit = new Octokit({ auth: token });
+    const token = await getGithubToken(client, session.userId);
+    const displayName = profile.displayName || profile.username;
+
+    const octokit = new Octokit({ auth: token ?? undefined });
 
     let repos: Repository[] = [];
     try {
@@ -66,7 +56,8 @@ export default async function Dashboard() {
                         <form
                             action={async () => {
                                 "use server";
-                                await signOut({ redirectTo: "/" });
+                                await clearSessionCookie();
+                                redirect("/");
                             }}
                         >
                             <Button type="submit" variant="outline" size="sm" className="gap-2">
@@ -77,7 +68,7 @@ export default async function Dashboard() {
                     </div>
                 </header>
 
-                <DashboardClient initialRepos={repos} />
+                <DashboardClient initialRepos={repos} username={profile.username} />
             </div>
         </div>
     );

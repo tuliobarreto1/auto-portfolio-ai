@@ -1,38 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
-import { Prisma } from "@prisma/client";
+import { getServerSession } from "@/lib/session";
+import { authedClient } from "@/lib/infraforge";
+import { getResume, clearResumeCache } from "@/lib/db";
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user) {
+    const session = await getServerSession();
+    if (!session) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 
-    // @ts-ignore
-    const githubId = String(session.user.id || session.userId);
-    const user = await prisma.user.findUnique({
-      where: { githubId },
-      include: { resume: true },
-    });
+    const client = authedClient(session.jwt);
+    const resume = await getResume(client, session.userId);
 
-    if (!user || !user.resume) {
+    if (!resume) {
       return NextResponse.json(
         { error: "Currículo não encontrado" },
         { status: 404 }
       );
     }
 
-    // Limpar o cache de dados estruturados
-    await prisma.resume.update({
-      where: { id: user.resume.id },
-      data: {
-        structuredData: Prisma.JsonNull,
-      },
-    });
-
-    console.log("Cache de dados estruturados limpo");
+    await clearResumeCache(client, session.userId);
 
     return NextResponse.json({
       success: true,

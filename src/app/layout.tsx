@@ -12,8 +12,6 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-import { Providers } from "@/components/providers";
-
 export const metadata: Metadata = {
   title: "AutoPortfolio AI",
   description: "Generate your developer portfolio with AI",
@@ -29,9 +27,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
-        <Providers>
-          {children}
-        </Providers>
+        {children}
       </body>
     </html>
   );

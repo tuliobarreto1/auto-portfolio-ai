@@ -1,29 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
+import { getServerSession } from "@/lib/session";
+import { authedClient } from "@/lib/infraforge";
+import { getPortfolioItemsWithRepo } from "@/lib/db";
 import OpenAI from "openai";
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user) {
+    const session = await getServerSession();
+    if (!session) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 
-    // @ts-ignore
-    const githubId = String(session.user.id || session.userId);
-
     // Buscar projetos selecionados do usuário
-    const portfolioItems = await prisma.portfolioItem.findMany({
-      where: {
-        user: {
-          githubId: githubId,
-        },
-      },
-      include: {
-        repository: true,
-      },
-    });
+    const portfolioItems = await getPortfolioItemsWithRepo(
+      authedClient(session.jwt),
+      session.userId,
+    );
 
     if (portfolioItems.length === 0) {
       return NextResponse.json({
@@ -33,9 +25,9 @@ export async function POST(request: NextRequest) {
 
     // Extrair informações dos projetos
     const projectsInfo = portfolioItems.map(item => ({
-      name: item.repository.name,
-      description: item.repository.description || "",
-      language: item.repository.language || "",
+      name: item.repoName,
+      description: item.repoDescription || "",
+      language: item.repoLanguage || "",
       technicalSummary: item.technicalSummary || "",
       features: item.features || "",
     }));

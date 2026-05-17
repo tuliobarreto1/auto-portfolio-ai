@@ -1,29 +1,26 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
+import { getServerSession } from "@/lib/session";
+import { authedClient } from "@/lib/infraforge";
+import { updateDisplayName } from "@/lib/db";
 
 export async function POST(req: Request) {
-    const session = await auth();
-    if (!session?.user) {
+    const session = await getServerSession();
+    if (!session) {
         return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 
     try {
         const { displayName } = await req.json();
 
-        // @ts-ignore
-        const rawGithubId = session.user.id || session.userId;
-        const githubId = String(rawGithubId);
-
         if (!displayName || displayName.trim() === "") {
             return NextResponse.json({ error: "Nome não pode ser vazio" }, { status: 400 });
         }
 
-        // Atualiza o displayName do usuário
-        await prisma.user.update({
-            where: { githubId },
-            data: { displayName: displayName.trim() },
-        });
+        await updateDisplayName(
+            authedClient(session.jwt),
+            session.userId,
+            displayName.trim(),
+        );
 
         return NextResponse.json({ success: true });
     } catch (error: any) {

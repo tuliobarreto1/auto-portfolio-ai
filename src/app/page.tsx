@@ -1,14 +1,20 @@
-import { auth, signIn } from "@/auth";
+import { getServerSession } from "@/lib/session";
 import { Button } from "@/components/ui/button";
 import { Github } from "lucide-react";
 import { redirect } from "next/navigation";
 
-export default async function Home() {
-  const session = await auth();
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const session = await getServerSession();
 
   if (session) {
     redirect("/dashboard");
   }
+
+  const { error } = await searchParams;
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-24 bg-background">
@@ -20,17 +26,16 @@ export default async function Home() {
           Transforme seus repositórios do GitHub em um portfólio incrível em segundos usando IA.
         </p>
 
-        <form
-          action={async () => {
-            "use server";
-            await signIn("github", { redirectTo: "/dashboard" });
-          }}
-        >
+        {error && (
+          <p className="text-sm text-red-500">{decodeURIComponent(error)}</p>
+        )}
+
+        <a href="/api/auth/github">
           <Button size="lg" className="gap-2">
             <Github className="w-5 h-5" />
             Entrar com GitHub
           </Button>
-        </form>
+        </a>
       </div>
     </main>
   );

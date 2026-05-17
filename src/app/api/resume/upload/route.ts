@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
-import { Prisma } from "@prisma/client";
-import { put } from "@vercel/blob";
+import { getServerSession } from "@/lib/session";
+import { authedClient } from "@/lib/infraforge";
+import { uploadPublicFile } from "@/lib/storage";
+import { getResume, upsertResumeFile, deleteResume } from "@/lib/db";
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user) {
+    const session = await getServerSession();
+    if (!session) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 
@@ -42,61 +42,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Buscar usuário
-    // @ts-ignore
-    const githubId = String(session.user.id || session.userId);
-    const user = await prisma.user.findUnique({
-      where: { githubId },
-    });
+    const client = authedClient(session.jwt);
 
-    if (!user) {
-      return NextResponse.json(
-        { error: "Usuário não encontrado" },
-        { status: 404 }
-      );
-    }
-
-    // Gerar nome único para o arquivo
     const fileExtension = file.type === "application/pdf" ? "pdf" : "docx";
-    const uniqueFileName = `resumes/${user.githubId}-${Date.now()}.${fileExtension}`;
+    const path = `resumes/${session.userId}-${Date.now()}.${fileExtension}`;
 
-    // Upload para Vercel Blob Storage
-    const blob = await put(uniqueFileName, file, {
-      access: 'public',
-      contentType: file.type,
+    const fileUrl = await uploadPublicFile(session.jwt, path, file, file.type);
+
+    await upsertResumeFile(client, session.userId, {
+      originalFileName: file.name,
+      fileType: fileExtension,
+      fileUrl,
     });
 
-    const fileUrl = blob.url;
-
-    // Salvar ou atualizar no banco de dados
-    const resume = await prisma.resume.upsert({
-      where: { userId: user.id },
-      update: {
-        originalFileName: file.name,
-        fileType: fileExtension,
-        fileUrl: fileUrl,
-        enhancedFileUrl: null, // Reset enhanced version
-        isEnhanced: false,
-        structuredData: Prisma.JsonNull, // Limpar cache - forçar reprocessamento
-        updatedAt: new Date(),
-      },
-      create: {
-        userId: user.id,
-        originalFileName: file.name,
-        fileType: fileExtension,
-        fileUrl: fileUrl,
-      },
-    });
-
-    console.log("Novo PDF enviado - cache de dados estruturados limpo");
+    const resume = await getResume(client, session.userId);
 
     return NextResponse.json({
       success: true,
       resume: {
-        id: resume.id,
-        fileName: resume.originalFileName,
-        fileUrl: resume.fileUrl,
-        fileType: resume.fileType,
+        id: resume?.id,
+        fileName: resume?.originalFileName,
+        fileUrl: resume?.fileUrl,
+        fileType: resume?.fileType,
       },
     });
   } catch (error) {
@@ -108,41 +75,29 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const session = await auth();
-    if (!session?.user) {
+    const session = await getServerSession();
+    if (!session) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 
-    // @ts-ignore
-    const githubId = String(session.user.id || session.userId);
-    const user = await prisma.user.findUnique({
-      where: { githubId },
-      include: { resume: true },
-    });
+    const resume = await getResume(authedClient(session.jwt), session.userId);
 
-    if (!user) {
-      return NextResponse.json(
-        { error: "Usuário não encontrado" },
-        { status: 404 }
-      );
-    }
-
-    if (!user.resume) {
+    if (!resume) {
       return NextResponse.json({ resume: null });
     }
 
     return NextResponse.json({
       resume: {
-        id: user.resume.id,
-        fileName: user.resume.originalFileName,
-        fileUrl: user.resume.fileUrl,
-        fileType: user.resume.fileType,
-        enhancedFileUrl: user.resume.enhancedFileUrl,
-        isEnhanced: user.resume.isEnhanced,
-        createdAt: user.resume.createdAt,
-        updatedAt: user.resume.updatedAt,
+        id: resume.id,
+        fileName: resume.originalFileName,
+        fileUrl: resume.fileUrl,
+        fileType: resume.fileType,
+        enhancedFileUrl: resume.enhancedFileUrl,
+        isEnhanced: resume.isEnhanced,
+        createdAt: resume.createdAt,
+        updatedAt: resume.updatedAt,
       },
     });
   } catch (error) {
@@ -154,29 +109,24 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function DELETE(request: NextRequest) {
+export async function DELETE() {
   try {
-    const session = await auth();
-    if (!session?.user) {
+    const session = await getServerSession();
+    if (!session) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 
-    // @ts-ignore
-    const githubId = String(session.user.id || session.userId);
-    const user = await prisma.user.findUnique({
-      where: { githubId },
-    });
+    const client = authedClient(session.jwt);
+    const resume = await getResume(client, session.userId);
 
-    if (!user) {
+    if (!resume) {
       return NextResponse.json(
-        { error: "Usuário não encontrado" },
+        { error: "Currículo não encontrado" },
         { status: 404 }
       );
     }
 
-    await prisma.resume.delete({
-      where: { userId: user.id },
-    });
+    await deleteResume(client, session.userId);
 
     return NextResponse.json({ success: true });
   } catch (error) {

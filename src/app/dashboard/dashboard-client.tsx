@@ -7,15 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ExternalLink, Search } from "lucide-react";
 import Link from "next/link";
-import { useSession } from "next-auth/react";
 import { ResumeUpload } from "@/components/resume-upload";
 
 interface DashboardClientProps {
     initialRepos: Repository[];
+    username: string;
 }
 
-export default function DashboardClient({ initialRepos }: DashboardClientProps) {
-    const { data: session } = useSession();
+export default function DashboardClient({ initialRepos, username }: DashboardClientProps) {
     const {
         selectedRepos, toggleRepoSelection,
         portfolioItems, updatePortfolioItem, clearPortfolioItem,
@@ -36,7 +35,7 @@ export default function DashboardClient({ initialRepos }: DashboardClientProps) 
 
     // Sincroniza com o servidor sempre que os dados mudarem
     useEffect(() => {
-        if (isLoaded && session?.user && initialRepos.length > 0) {
+        if (isLoaded && initialRepos.length > 0) {
             const timeoutId = setTimeout(() => {
                 syncWithServer(initialRepos).catch(err => {
                     console.error('Erro ao sincronizar:', err);
@@ -45,7 +44,7 @@ export default function DashboardClient({ initialRepos }: DashboardClientProps) 
 
             return () => clearTimeout(timeoutId);
         }
-    }, [selectedRepos, portfolioItems, session?.user, isLoaded]);
+    }, [selectedRepos, portfolioItems, isLoaded]);
 
     // Filtra e ordena repositórios
     const filteredRepos = useMemo(() => {
@@ -138,8 +137,8 @@ export default function DashboardClient({ initialRepos }: DashboardClientProps) 
                         </div>
                     </div>
 
-                    {selectedRepos.length > 0 && session?.user && (
-                        <Link href={`/portfolio/${(session.user as any).login || session.user.name}`} target="_blank">
+                    {selectedRepos.length > 0 && (
+                        <Link href={`/portfolio/${username}`} target="_blank">
                             <Button variant="secondary" className="gap-2">
                                 <ExternalLink className="w-4 h-4" /> Ver Portfólio Público
                             </Button>

@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { getServerSession } from "@/lib/session";
 import OpenAI from "openai";
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user) {
+    const session = await getServerSession();
+    if (!session) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 

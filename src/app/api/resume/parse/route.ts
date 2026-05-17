@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
+import { getServerSession } from "@/lib/session";
+import { authedClient } from "@/lib/infraforge";
+import { getResume, updateResumeStructuredData } from "@/lib/db";
 import OpenAI from "openai";
 import path from "path";
 import { writeFile, unlink } from "fs/promises";
@@ -46,19 +47,15 @@ export interface StructuredResume {
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user) {
+    const session = await getServerSession();
+    if (!session) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 
-    // @ts-ignore
-    const githubId = String(session.user.id || session.userId);
-    const user = await prisma.user.findUnique({
-      where: { githubId },
-      include: { resume: true },
-    });
+    const client = authedClient(session.jwt);
+    const resume = await getResume(client, session.userId);
 
-    if (!user || !user.resume) {
+    if (!resume) {
       return NextResponse.json(
         { error: "Currículo não encontrado" },
         { status: 404 }
@@ -66,35 +63,35 @@ export async function GET(request: NextRequest) {
     }
 
     // Se já tiver dados estruturados salvos, retornar do cache
-    if (user.resume.structuredData) {
+    if (resume.structuredData) {
       console.log("Usando dados estruturados do cache");
       return NextResponse.json({
         success: true,
         originalText: "Dados do cache (PDF já processado anteriormente)",
-        structured: user.resume.structuredData,
+        structured: resume.structuredData,
         fromCache: true,
       });
     }
 
     console.log("Processando PDF pela primeira vez...");
 
-    // Determinar se é URL do Blob ou caminho local
+    // Determinar se é URL do storage ou caminho local
     let pdfPath: string;
     let isTemporaryFile = false;
 
-    if (user.resume.fileUrl.startsWith('http')) {
-      // Baixar do Blob Storage para arquivo temporário
-      console.log("Baixando PDF do Blob Storage...");
-      const response = await fetch(user.resume.fileUrl);
+    if (resume.fileUrl.startsWith("http")) {
+      // Baixar do storage para arquivo temporário
+      console.log("Baixando PDF do storage...");
+      const response = await fetch(resume.fileUrl);
       const arrayBuffer = await response.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
 
-      pdfPath = path.join(tmpdir(), `resume-${user.githubId}-${Date.now()}.pdf`);
+      pdfPath = path.join(tmpdir(), `resume-${session.userId}-${Date.now()}.pdf`);
       await writeFile(pdfPath, buffer);
       isTemporaryFile = true;
     } else {
       // Usar caminho local
-      pdfPath = path.join(process.cwd(), "public", user.resume.fileUrl);
+      pdfPath = path.join(process.cwd(), "public", resume.fileUrl);
     }
 
     const extractedText = await new Promise<string>((resolve, reject) => {
@@ -127,7 +124,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Usar DeepSeek para estruturar o conteúdo
+    // Usar IA para estruturar o conteúdo
     const apiKey = process.env.OPENAI_API_KEY;
     const provider = (process.env.AI_PROVIDER || 'openai') as 'openai' | 'deepseek';
 
@@ -234,12 +231,7 @@ IMPORTANTE:
     }
 
     // Salvar dados estruturados no banco para uso futuro
-    await prisma.resume.update({
-      where: { id: user.resume.id },
-      data: {
-        structuredData: JSON.parse(JSON.stringify(structuredResume)),
-      },
-    });
+    await updateResumeStructuredData(client, session.userId, structuredResume);
 
     console.log("Dados estruturados salvos no banco");
 

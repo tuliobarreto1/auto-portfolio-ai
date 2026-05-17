@@ -1,17 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
-import { Octokit } from "octokit";
+import { getServerSession } from "@/lib/session";
+import { authedClient } from "@/lib/infraforge";
+import { uploadPublicFile } from "@/lib/storage";
+import { getResume, getPortfolioItemsWithRepo } from "@/lib/db";
+import { updateResumeEnhanced } from "@/lib/db";
 import OpenAI from "openai";
 import { v4 as uuidv4 } from "uuid";
 import path from "path";
-import { mkdir, writeFile, readFile } from "fs/promises";
+import { readFile, unlink } from "fs/promises";
+import { tmpdir } from "os";
 import { PDFDancer, Color } from "pdfdancer-client-typescript";
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user) {
+    const session = await getServerSession();
+    if (!session) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 
@@ -26,31 +29,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // @ts-ignore
-    const githubId = String(session.user.id || session.userId);
-    const user = await prisma.user.findUnique({
-      where: { githubId },
-      include: {
-        resume: true,
-        repositories: {
-          where: { selected: true },
-        },
-        portfolioItems: {
-          include: {
-            repository: true,
-          },
-        },
-      },
-    });
+    const client = authedClient(session.jwt);
+    const resume = await getResume(client, session.userId);
+    const portfolioItems = await getPortfolioItemsWithRepo(client, session.userId);
 
-    if (!user) {
-      return NextResponse.json(
-        { error: "Usuário não encontrado" },
-        { status: 404 }
-      );
-    }
-
-    if (!user.resume) {
+    if (!resume) {
       return NextResponse.json(
         { error: "Nenhum currículo encontrado" },
         { status: 404 }
@@ -58,14 +41,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Coletar informações dos projetos
-    const projectsInfo = user.portfolioItems.map((item) => ({
-      name: item.repository.name,
-      description: item.repository.description,
-      language: item.repository.language,
+    const projectsInfo = portfolioItems.map((item) => ({
+      name: item.repoName,
+      description: item.repoDescription,
+      language: item.repoLanguage,
       objective: item.objective,
       features: item.features,
       technicalSummary: item.technicalSummary,
-      url: item.repository.htmlUrl,
+      url: item.repoHtmlUrl,
     }));
 
     // Verificar se há projetos para analisar
@@ -77,10 +60,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Se for PDF, usar PDFDancer
-    if (user.resume.fileType === "pdf") {
-      // Usa a chave do ambiente
+    if (resume.fileType === "pdf") {
       const pdfdancerApiKey = process.env.PDFDANCER_API_KEY;
-      
+
       if (!pdfdancerApiKey) {
         return NextResponse.json(
           { error: "Chave da API PDFDancer não configurada no servidor" },
@@ -93,18 +75,17 @@ export async function POST(request: NextRequest) {
 
       // Integração com PDFDancer
       const enhancedPdfUrl = await enhanceResumeWithPDFDancer(
-        user.resume.fileUrl,
+        session.jwt,
+        session.userId,
+        resume.fileUrl,
         aiAnalysis,
         pdfdancerApiKey
       );
 
       // Atualizar no banco
-      await prisma.resume.update({
-        where: { id: user.resume.id },
-        data: {
-          enhancedFileUrl: enhancedPdfUrl,
-          isEnhanced: true,
-        },
+      await updateResumeEnhanced(client, session.userId, {
+        enhancedFileUrl: enhancedPdfUrl,
+        isEnhanced: true,
       });
 
       return NextResponse.json({
@@ -181,25 +162,25 @@ IMPORTANTE: Seja preciso e factual. Não invente métricas ou conquistas que nã
 }
 
 async function enhanceResumeWithPDFDancer(
+  jwt: string,
+  userId: string,
   originalFileUrl: string,
   analysis: any,
   apiKey: string
 ): Promise<string> {
+  let tmpOutput: string | null = null;
   try {
-    // Ler o arquivo PDF original
-    const pdfPath = path.join(process.cwd(), "public", originalFileUrl);
-    const pdfBuffer = await readFile(pdfPath);
-    
-    // Inicializar PDFDancer com o token da API
-    const pdfDancerToken = process.env.PDFDANCER_API_KEY;
-    
-    // Abrir o PDF com PDFDancer (sintaxe correta: passa pdfData diretamente, não como objeto)
-    const pdf = await PDFDancer.open(pdfBuffer, pdfDancerToken);
-    
+    // Baixar o PDF original do storage (URL pública)
+    const res = await fetch(originalFileUrl);
+    const pdfBuffer = Buffer.from(await res.arrayBuffer());
+
+    // Abrir o PDF com PDFDancer
+    const pdf = await PDFDancer.open(pdfBuffer, apiKey);
+
     // Adicionar um parágrafo com as skills principais no topo da primeira página
     if (analysis.skills && analysis.skills.length > 0) {
       const skillsText = `Habilidades Destacadas: ${analysis.skills.slice(0, 5).join(', ')}`;
-      
+
       await pdf.newParagraph()
         .text(skillsText)
         .font("Helvetica-Bold", 10)
@@ -207,18 +188,18 @@ async function enhanceResumeWithPDFDancer(
         .at(1, 72, 720) // pageNumber, x, y - Topo da página
         .add();
     }
-    
+
     // Adicionar experiência relevante baseada nos projetos
     if (analysis.experience && analysis.experience.length > 0) {
       const experienceText = `Experiência Relevante (GitHub): ${analysis.experience[0]}`;
-      
+
       await pdf.newParagraph()
         .text(experienceText)
         .font("Helvetica", 9)
         .at(1, 72, 695) // pageNumber, x, y
         .add();
     }
-    
+
     // Adicionar highlights como bullet points
     if (analysis.highlights && analysis.highlights.length > 0) {
       let yPosition = 670;
@@ -230,16 +211,30 @@ async function enhanceResumeWithPDFDancer(
           .add();
       }
     }
-    
-    // Salvar o PDF modificado
-    const uniqueFileName = `enhanced-${uuidv4()}.pdf`;
-    const outputPath = path.join(process.cwd(), "public", "uploads", "resumes", uniqueFileName);
-    await pdf.save(outputPath);
-    
-    return `/uploads/resumes/${uniqueFileName}`;
+
+    // Salvar o PDF modificado num arquivo temporário e subir para o storage
+    tmpOutput = path.join(tmpdir(), `enhanced-${uuidv4()}.pdf`);
+    await pdf.save(tmpOutput);
+
+    const enhancedBuffer = await readFile(tmpOutput);
+    const storagePath = `resumes/${userId}-enhanced-${Date.now()}.pdf`;
+    return await uploadPublicFile(
+      jwt,
+      storagePath,
+      new Blob([enhancedBuffer], { type: "application/pdf" }),
+      "application/pdf",
+    );
   } catch (error) {
     console.error("Erro ao usar PDFDancer:", error);
     // Em caso de erro, retorna a URL original
     return originalFileUrl;
+  } finally {
+    if (tmpOutput) {
+      try {
+        await unlink(tmpOutput);
+      } catch {
+        // ignore
+      }
+    }
   }
 }
