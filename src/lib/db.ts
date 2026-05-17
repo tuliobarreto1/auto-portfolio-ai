@@ -50,6 +50,8 @@ export interface ResumeRow {
   originalFileName: string;
   fileName: string;
   fileType: string;
+  // fileUrl / enhancedFileUrl guardam a object KEY do storage S3,
+  // nao uma URL. Use presignedUrl() para gerar o link do navegador.
   fileUrl: string;
   enhancedFileUrl: string | null;
   isEnhanced: boolean;

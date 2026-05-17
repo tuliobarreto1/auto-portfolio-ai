@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@/lib/session";
 import { authedClient } from "@/lib/infraforge";
-import { uploadPublicFile } from "@/lib/storage";
+import { downloadFile, uploadFile } from "@/lib/storage";
 import { getResume, getPortfolioItemsWithRepo } from "@/lib/db";
 import { updateResumeEnhanced } from "@/lib/db";
 import OpenAI from "openai";
@@ -75,7 +75,6 @@ export async function POST(request: NextRequest) {
 
       // Integração com PDFDancer
       const enhancedPdfUrl = await enhanceResumeWithPDFDancer(
-        session.jwt,
         session.userId,
         resume.fileUrl,
         aiAnalysis,
@@ -162,17 +161,15 @@ IMPORTANTE: Seja preciso e factual. Não invente métricas ou conquistas que nã
 }
 
 async function enhanceResumeWithPDFDancer(
-  jwt: string,
   userId: string,
-  originalFileUrl: string,
+  originalKey: string,
   analysis: any,
   apiKey: string
 ): Promise<string> {
   let tmpOutput: string | null = null;
   try {
-    // Baixar o PDF original do storage (URL pública)
-    const res = await fetch(originalFileUrl);
-    const pdfBuffer = Buffer.from(await res.arrayBuffer());
+    // Baixar o PDF original do storage
+    const pdfBuffer = await downloadFile(originalKey);
 
     // Abrir o PDF com PDFDancer
     const pdf = await PDFDancer.open(pdfBuffer, apiKey);
@@ -217,17 +214,13 @@ async function enhanceResumeWithPDFDancer(
     await pdf.save(tmpOutput);
 
     const enhancedBuffer = await readFile(tmpOutput);
-    const storagePath = `resumes/${userId}-enhanced-${Date.now()}.pdf`;
-    return await uploadPublicFile(
-      jwt,
-      storagePath,
-      new Blob([enhancedBuffer], { type: "application/pdf" }),
-      "application/pdf",
-    );
+    const enhancedKey = `resumes/${userId}-enhanced-${Date.now()}.pdf`;
+    await uploadFile(enhancedKey, enhancedBuffer, "application/pdf");
+    return enhancedKey;
   } catch (error) {
     console.error("Erro ao usar PDFDancer:", error);
-    // Em caso de erro, retorna a URL original
-    return originalFileUrl;
+    // Em caso de erro, mantém o arquivo original
+    return originalKey;
   } finally {
     if (tmpOutput) {
       try {

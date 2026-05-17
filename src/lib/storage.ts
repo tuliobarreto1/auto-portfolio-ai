@@ -1,43 +1,49 @@
-// ATENCAO: o @infraforge/sdk 0.2.1 NAO expoe um modulo de storage
-// (createClient devolve apenas { auth, db }). Esta implementacao chama
-// a API HTTP de storage do InfraForge diretamente. O contrato abaixo
-// (rota, campos do multipart, resposta) e a melhor aproximacao a partir
-// da documentacao e PRECISA ser confirmado contra a plataforma real.
+import * as Minio from "minio";
 
-// URL publica de um objeto no storage do InfraForge.
-export function publicUrl(path: string): string {
-  const base = (process.env.INFRAFORGE_STORAGE_PUBLIC_URL ?? "").replace(/\/$/, "");
-  return `${base}/${path.replace(/^\//, "")}`;
+// Storage S3 (MinIO) do projeto InfraForge. As tabelas guardam a object
+// KEY (ex.: "resumes/<uuid>-<ts>.pdf"); a URL para o navegador e gerada
+// sob demanda via presignedUrl() (o bucket nao e publico).
+
+let cached: Minio.Client | null = null;
+
+function client(): Minio.Client {
+  if (cached) return cached;
+  cached = new Minio.Client({
+    endPoint: new URL(process.env.STORAGE_ENDPOINT!).hostname,
+    port: 443,
+    useSSL: true,
+    pathStyle: true,
+    accessKey: process.env.STORAGE_ACCESS_KEY!,
+    secretKey: process.env.STORAGE_SECRET_KEY!,
+  });
+  return cached;
 }
 
-// Faz upload de um arquivo e devolve a URL publica.
-export async function uploadPublicFile(
-  jwt: string,
-  path: string,
-  data: Blob,
+const bucket = () => process.env.STORAGE_BUCKET!;
+
+// Sobe um arquivo e devolve a object key (a key e o que se guarda no banco).
+export async function uploadFile(
+  key: string,
+  data: Buffer,
   contentType: string,
 ): Promise<string> {
-  const form = new FormData();
-  form.append("path", path);
-  form.append("contentType", contentType);
-  form.append("file", data, path.split("/").pop() ?? "file");
+  await client().putObject(bucket(), key, data, data.length, {
+    "Content-Type": contentType,
+  });
+  return key;
+}
 
-  const res = await fetch(
-    `${process.env.INFRAFORGE_URL}/api/storage/${process.env.INFRAFORGE_PROJECT}`,
-    {
-      method: "POST",
-      headers: {
-        "x-infraforge-key": process.env.INFRAFORGE_API_KEY!,
-        Authorization: `Bearer ${jwt}`,
-      },
-      body: form,
-    },
-  );
+// URL temporaria assinada para o navegador acessar o objeto (6h).
+export function presignedUrl(key: string): Promise<string> {
+  return client().presignedGetObject(bucket(), key, 6 * 60 * 60);
+}
 
-  if (!res.ok) {
-    throw new Error(
-      `Upload para o storage falhou (${res.status}): ${await res.text()}`,
-    );
+// Baixa o conteudo de um objeto (uso server-side: parse / enhance).
+export async function downloadFile(key: string): Promise<Buffer> {
+  const stream = await client().getObject(bucket(), key);
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) {
+    chunks.push(chunk as Buffer);
   }
-  return publicUrl(path);
+  return Buffer.concat(chunks);
 }

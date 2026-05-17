@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@/lib/session";
 import { authedClient } from "@/lib/infraforge";
-import { uploadPublicFile } from "@/lib/storage";
+import { uploadFile, presignedUrl } from "@/lib/storage";
 import { getResume, updateResumeGenerated } from "@/lib/db";
 import type { StructuredResume } from "../parse/route";
 import { generatePDFByTemplate } from "@/lib/resume-templates";
@@ -42,26 +42,21 @@ export async function POST(request: NextRequest) {
     const doc = generatePDFByTemplate(resumeData, selectedTemplate);
     const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
 
-    // Upload para o storage do InfraForge
-    const path = `resumes/${session.userId}-structured-${Date.now()}.pdf`;
-    const fileUrl = await uploadPublicFile(
-      session.jwt,
-      path,
-      new Blob([pdfBuffer], { type: "application/pdf" }),
-      "application/pdf",
-    );
+    // Upload para o storage S3 do InfraForge
+    const key = `resumes/${session.userId}-structured-${Date.now()}.pdf`;
+    await uploadFile(key, pdfBuffer, "application/pdf");
 
     // Atualizar no banco (incluindo os dados estruturados editados)
     await updateResumeGenerated(client, session.userId, {
-      fileUrl,
-      fileName: path,
+      fileUrl: key,
+      fileName: key,
       templateType: selectedTemplate,
       structuredData: resumeData,
     });
 
     return NextResponse.json({
       success: true,
-      fileUrl,
+      fileUrl: await presignedUrl(key),
     });
   } catch (error: any) {
     console.error("Erro ao gerar PDF:", error);

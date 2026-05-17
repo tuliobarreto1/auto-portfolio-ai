@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { serviceClient } from "@/lib/infraforge";
 import { getProfileByUsername, getResume } from "@/lib/db";
+import { presignedUrl } from "@/lib/storage";
 import { Card } from "@/components/ui/card";
 import { FileText, Download, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -26,10 +27,11 @@ export default async function ResumePage({ params }: ResumePageProps) {
     notFound();
   }
 
-  const fileUrl =
+  const fileKey =
     resume.isEnhanced && resume.enhancedFileUrl
       ? resume.enhancedFileUrl
       : resume.fileUrl;
+  const fileUrl = await presignedUrl(fileKey);
 
   return (
     <div className="min-h-screen bg-background">

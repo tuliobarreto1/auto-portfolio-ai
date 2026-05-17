@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@/lib/session";
 import { authedClient } from "@/lib/infraforge";
-import { uploadPublicFile } from "@/lib/storage";
+import { uploadFile, presignedUrl } from "@/lib/storage";
 import { getResume, upsertResumeFile, deleteResume } from "@/lib/db";
 
 export async function POST(request: NextRequest) {
@@ -45,14 +45,15 @@ export async function POST(request: NextRequest) {
     const client = authedClient(session.jwt);
 
     const fileExtension = file.type === "application/pdf" ? "pdf" : "docx";
-    const path = `resumes/${session.userId}-${Date.now()}.${fileExtension}`;
+    const key = `resumes/${session.userId}-${Date.now()}.${fileExtension}`;
+    const buffer = Buffer.from(await file.arrayBuffer());
 
-    const fileUrl = await uploadPublicFile(session.jwt, path, file, file.type);
+    await uploadFile(key, buffer, file.type);
 
     await upsertResumeFile(client, session.userId, {
       originalFileName: file.name,
       fileType: fileExtension,
-      fileUrl,
+      fileUrl: key,
     });
 
     const resume = await getResume(client, session.userId);
@@ -62,7 +63,7 @@ export async function POST(request: NextRequest) {
       resume: {
         id: resume?.id,
         fileName: resume?.originalFileName,
-        fileUrl: resume?.fileUrl,
+        fileUrl: resume ? await presignedUrl(resume.fileUrl) : null,
         fileType: resume?.fileType,
       },
     });
@@ -92,9 +93,11 @@ export async function GET() {
       resume: {
         id: resume.id,
         fileName: resume.originalFileName,
-        fileUrl: resume.fileUrl,
+        fileUrl: await presignedUrl(resume.fileUrl),
         fileType: resume.fileType,
-        enhancedFileUrl: resume.enhancedFileUrl,
+        enhancedFileUrl: resume.enhancedFileUrl
+          ? await presignedUrl(resume.enhancedFileUrl)
+          : null,
         isEnhanced: resume.isEnhanced,
         createdAt: resume.createdAt,
         updatedAt: resume.updatedAt,

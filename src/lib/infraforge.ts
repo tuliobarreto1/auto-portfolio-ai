@@ -5,7 +5,7 @@ export type InfraForgeClient = ReturnType<typeof createClient>;
 function config() {
   return {
     url: process.env.INFRAFORGE_URL!,
-    projectSlug: process.env.INFRAFORGE_PROJECT!,
+    projectSlug: process.env.INFRAFORGE_PROJECT_SLUG!,
     apiKey: process.env.INFRAFORGE_API_KEY!,
   };
 }

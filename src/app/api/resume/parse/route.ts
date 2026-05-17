@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@/lib/session";
 import { authedClient } from "@/lib/infraforge";
 import { getResume, updateResumeStructuredData } from "@/lib/db";
+import { downloadFile } from "@/lib/storage";
 import OpenAI from "openai";
 import path from "path";
 import { writeFile, unlink } from "fs/promises";
@@ -75,24 +76,13 @@ export async function GET(request: NextRequest) {
 
     console.log("Processando PDF pela primeira vez...");
 
-    // Determinar se é URL do storage ou caminho local
-    let pdfPath: string;
-    let isTemporaryFile = false;
-
-    if (resume.fileUrl.startsWith("http")) {
-      // Baixar do storage para arquivo temporário
-      console.log("Baixando PDF do storage...");
-      const response = await fetch(resume.fileUrl);
-      const arrayBuffer = await response.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-
-      pdfPath = path.join(tmpdir(), `resume-${session.userId}-${Date.now()}.pdf`);
-      await writeFile(pdfPath, buffer);
-      isTemporaryFile = true;
-    } else {
-      // Usar caminho local
-      pdfPath = path.join(process.cwd(), "public", resume.fileUrl);
-    }
+    // Baixar o PDF do storage para um arquivo temporário (pdf2json lê de path)
+    const buffer = await downloadFile(resume.fileUrl);
+    const pdfPath = path.join(
+      tmpdir(),
+      `resume-${session.userId}-${Date.now()}.pdf`,
+    );
+    await writeFile(pdfPath, buffer);
 
     const extractedText = await new Promise<string>((resolve, reject) => {
       const PDFParser = require("pdf2json");
@@ -115,13 +105,11 @@ export async function GET(request: NextRequest) {
       pdfParser.loadPDF(pdfPath);
     });
 
-    // Limpar arquivo temporário se foi baixado
-    if (isTemporaryFile) {
-      try {
-        await unlink(pdfPath);
-      } catch (err) {
-        console.error("Erro ao deletar arquivo temporário:", err);
-      }
+    // Limpar arquivo temporário
+    try {
+      await unlink(pdfPath);
+    } catch (err) {
+      console.error("Erro ao deletar arquivo temporário:", err);
     }
 
     // Usar IA para estruturar o conteúdo
